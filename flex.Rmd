@@ -1,0 +1,3122 @@
+---
+title: "LKM SNAPSHOT"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    theme: 
+      version: 4
+      # bootswatch: minty
+      base_font: !expr bslib::font_google("Prompt")
+      code_font: !expr bslib::font_google("JetBrains Mono")
+    orientation: columns
+    navbar:
+      - { title: "About", href: "https://ojk.go.id", align: right, icon: glyphicon-time}
+      # - { title: "Home", href: "http://127.0.0.1:5880/lkm%20flex%20shin.Rmd", align: right, icon: fa-home }
+      
+
+---
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+# setwd("~/2019/r/sid")# setting working directory
+options(scipen = 999)
+suppressMessages(library(shiny, warn.conflicts = F, quietly = T))
+suppressMessages(library(htmlwidgets, warn.conflicts = F, quietly = T))
+suppressMessages(library(flexdashboard, warn.conflicts = F, quietly = T))
+suppressMessages(library(tidyverse, warn.conflicts = F, quietly = T))
+suppressMessages(library(sparkline, warn.conflicts = F, quietly = T))
+suppressMessages(library(kableExtra, warn.conflicts = F, quietly = T))
+suppressMessages(library(plotly, warn.conflicts = F, quietly = T))
+suppressMessages(library(ggplot2, warn.conflicts = F, quietly = T))
+suppressMessages(library(treemapify, warn.conflicts = F, quietly = T))
+suppressMessages(library(ggplotlyExtra, warn.conflicts = F, quietly = T))
+suppressMessages(library(highcharter, warn.conflicts = F, quietly = T))
+suppressMessages(library(treemap, warn.conflicts = F, quietly = T))
+suppressMessages(library(viridisLite, warn.conflicts = F, quietly = T))
+suppressMessages(library(ggridges, warn.conflicts = F, quietly = T))
+suppressMessages(library(gganimate, warn.conflicts = F, quietly = T))
+suppressMessages(library(ggalluvial, warn.conflicts = F, quietly = T))
+suppressMessages(library(ggbeeswarm, warn.conflicts = F, quietly = T))
+suppressMessages(library(formattable, warn.conflicts = F, quietly = T))
+suppressMessages(library(viridis, warn.conflicts = F, quietly = T))
+suppressMessages(library(GGally, warn.conflicts = F, quietly = T))
+
+load("data.RData")
+sparkline(0)
+
+# options=list(
+#   fnDrawCallback = htmlwidgets::JS(
+#     
+#   )
+# )
+namalkm <- licensing %>%  
+  select(Sandi_LKM,Nama_Original) %>% 
+  filter(!grepl("Agregat", Nama_Original)) %>% 
+  unique() %>% 
+  mutate(namalkm=toupper(Nama_Original), nama=paste(toupper(Nama_Original)," ",Sandi_LKM ) ) %>%
+  mutate_if(is.factor,as.character) %>% 
+  arrange(namalkm) 
+ 
+finaldata <- financing1 %>% filter(!is.na(Sandi_Periode)) %>% 
+  # arrange(Periode_Laporan) %>%
+  mutate(rowname=as.character(format(lubridate::dmy(paste0("01",case_when(
+    substr(Periode_Laporan,5,6)==1~"04",
+    substr(Periode_Laporan,5,6)==2~"08",
+    substr(Periode_Laporan,5,6)==3~"12"
+  ),substr(Periode_Laporan,1,4))),"%b-%y")),
+  Tanggal=lubridate::dmy(paste0("01",case_when(
+     substr(Periode_Laporan,5,6)==1~"04",
+     substr(Periode_Laporan,5,6)==2~"08",
+     substr(Periode_Laporan,5,6)==3~"12"
+   ),substr(Periode_Laporan,1,4))),
+  asetgrup=case_when(
+    `100_JmlhAst`>=50000000000 ~ '6',
+    `100_JmlhAst`>=25000000000 & `100_JmlhAst`<50000000000 ~ '5',
+    `100_JmlhAst`>=10000000000 & `100_JmlhAst`<25000000000 ~ '4',
+    `100_JmlhAst`>=5000000000  & `100_JmlhAst`<10000000000 ~ '3',
+    `100_JmlhAst`>=1000000000  & `100_JmlhAst`<5000000000 ~ '2',
+    `100_JmlhAst`<1000000000 ~ '1'
+     ),
+  equitygrup=case_when(
+    `300_JmlhEkts`>=10000000000 ~ '6',
+    `300_JmlhEkts`>=5000000000 & `300_JmlhEkts`<10000000000 ~ '5',
+    `300_JmlhEkts`>=1000000000 & `300_JmlhEkts`<5000000000 ~ '4',
+    `300_JmlhEkts`>=500000000 & `300_JmlhEkts`<1000000000 ~ '3',
+    `300_JmlhEkts`>=300000000 & `300_JmlhEkts`<500000000 ~ '2',
+    `300_JmlhEkts`<300000000 ~ '1'
+     ), 
+    "DPK"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+    deposittaking=case_when(
+    DPK>0 ~ "Yes",
+    TRUE ~ "No"
+  ),
+  jenislembaga=case_when(
+  Jenis_Lembaga.y=="Badan Usaha Milik Desa"~ "BUMDES",
+  Jenis_Lembaga.y=="Baitul Maal wa Tamwil"~ "BMT",
+  Jenis_Lembaga.y=="Baitul Tamwil Muhammadiyah"~ "BTM",
+  Jenis_Lembaga.y=="BKD"~ "BKD",
+  Jenis_Lembaga.y=="BWM"~ "BWM",
+  Jenis_Lembaga.y=="Kelompok Usaha Bersama"~ "KUB",
+  Jenis_Lembaga.y=="Koperasi Serba Usaha"~ "KSU",
+  Jenis_Lembaga.y=="Koperasi Serba Usaha LEPP M3"~ "KSU LEPP",
+  Jenis_Lembaga.y=="Koperasi Simpan Pinjam"~ "KSP",
+  Jenis_Lembaga.y=="Koperasi Simpan Pinjam Pembiayaan Syariah"~ "KSPPS",
+  Jenis_Lembaga.y=="Koperasi Wanita"~ "KOPWAN",
+  Jenis_Lembaga.y=="Koperasi Wanita (Pengajian)"~ "KOPWAN PENGAJIAN",
+  Jenis_Lembaga.y=="Lembaga Keuangan Desa"~ "LKD",
+  Jenis_Lembaga.y=="Lembaga Keuangan Kecamatan"~ "LKK",
+  Jenis_Lembaga.y=="Lembaga Pemberdaya Ekonomi Desa"~ "LPED",
+  Jenis_Lembaga.y=="LKMA"~ "LKMA",
+  Jenis_Lembaga.y=="PDPK/BKPD"~ "PDPK/BKPD",
+  Jenis_Lembaga.y=="PNPM"~ "PNPM",
+  Jenis_Lembaga.y=="Unit Simpan Pinjam BUMDes"~ "USP BUMDES",
+  Jenis_Lembaga.y==NA~ "",
+  Jenis_Lembaga.y=="-"~ "",
+  Jenis_Lembaga.y=="0"~ ""
+   ))%>% 
+    arrange(Periode_Laporan) %>% 
+  # dplyr::mutate_if(.predicate = is.numeric, funs(./1000000)) %>% 
+  # dplyr::mutate_if(.predicate = is.numeric, scales::comma) %>%
+  mutate(across(where(is.numeric), round, 0))  
+bs_fig1 <- finaldata %>%   
+  filter( Sandi_LKM==999999999) %>% 
+    select(Sandi_LKM, Periode_Laporan,Tanggal,rowname,
+   `100_JmlhAst`,   `Kas dan Setara Kas (Kas Lancar)`,
+   `Pinjaman Yang Diberikan (netto)`,   `200_JUMLAHLIABILITAS`,
+`220_Smpnn:`,
+   `223_TbngnWdh`,
+   `270_JmlhDnSyrkhTmprr`,
+   `250_Mdhrbh`,
+   `260_Msyrkh`,
+   `300_JmlhEkts`,
+   `310_Mdl`,
+   `340_SldLb/Rg`,
+   jenislembaga
+   ) %>%
+  # dplyr::mutate_if(.predicate = is.numeric, scales::comma) %>%
+   arrange(Periode_Laporan) %>%
+    dplyr::mutate_if(.predicate = is.numeric, funs(./1000000)) %>%
+  # dplyr::mutate_if(.predicate = is.numeric, scales::comma) %>%
+   mutate(period=rowname,
+    "DPK"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+  growth_asset=scales::percent(
+     ((`100_JmlhAst`-lag(`100_JmlhAst`,3))/lag(`100_JmlhAst`,3)),
+     accuracy = 5L),
+  growth_pinjaman=scales::percent(
+    ((`Pinjaman Yang Diberikan (netto)`-lag(`Pinjaman Yang Diberikan (netto)`,3))/lag(`Pinjaman Yang Diberikan (netto)`,3)), accuracy = 5L),
+  growth_dpk=scales::percent(
+    ((DPK-lag(DPK,3))/lag(DPK,3)), accuracy = 5L),
+  growth_ekuitas=scales::percent(
+    ((`300_JmlhEkts`-lag(`300_JmlhEkts`,3))/lag(`300_JmlhEkts`,3)), accuracy = 5L),
+    growth_modal=scales::percent(
+    ((`310_Mdl`-lag(`310_Mdl`,3))/lag(`310_Mdl`,3)), accuracy = 5L),
+    growth_saldolr=scales::percent(
+    ((`340_SldLb/Rg`-lag(`340_SldLb/Rg`,3))/lag(`340_SldLb/Rg`,3)), accuracy = 5L)) 
+
+bs_fig <- bs_fig1 %>% 
+    dplyr::mutate_if(.predicate = is.numeric, funs(./1000)) %>%
+  filter( Periode_Laporan>20171) %>% 
+    mutate(across(where(is.numeric), round, 0)) 
+
+
+rid <- financing1 %>%
+   mutate(period=as.character(format(lubridate::dmy(paste0("01",case_when(
+    substr(as.character(Periode_Laporan),5,6)==1~"04",
+    substr(as.character(Periode_Laporan),5,6)==2~"08",
+    substr(as.character(Periode_Laporan),5,6)==3~"12"
+  ),substr(as.character(Periode_Laporan),1,4))),"%b-%y")),
+  Tanggal=lubridate::dmy(paste0("01",case_when(
+     substr(as.character(Periode_Laporan),5,6)==1~"04",
+     substr(as.character(Periode_Laporan),5,6)==2~"08",
+     substr(as.character(Periode_Laporan),5,6)==3~"12"
+   ),substr(as.character(Periode_Laporan),1,4))),
+  "DPK"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+  deposittaking=case_when(
+    DPK>0 ~ "Yes",
+    TRUE ~ "No"
+  ),
+  logaset=log10(`100_JmlhAst`),
+  asetgrup=case_when(
+    `100_JmlhAst`>=50000000000 ~ '6',
+    `100_JmlhAst`>=25000000000 & `100_JmlhAst`<50000000000 ~ '5',
+    `100_JmlhAst`>=10000000000 & `100_JmlhAst`<25000000000 ~ '4',
+    `100_JmlhAst`>=5000000000  & `100_JmlhAst`<10000000000 ~ '3',
+    `100_JmlhAst`>=1000000000  & `100_JmlhAst`<5000000000 ~ '2',
+    `100_JmlhAst`<1000000000 ~ '1'
+     ),  jenislembaga=case_when(
+  Jenis_Lembaga.y=="Badan Usaha Milik Desa"~ "BUMDES",
+  Jenis_Lembaga.y=="Baitul Maal wa Tamwil"~ "BMT",
+  Jenis_Lembaga.y=="Baitul Tamwil Muhammadiyah"~ "BTM",
+  Jenis_Lembaga.y=="BKD"~ "BKD",
+  Jenis_Lembaga.y=="BWM"~ "BWM",
+  Jenis_Lembaga.y=="Kelompok Usaha Bersama"~ "KUB",
+  Jenis_Lembaga.y=="Koperasi Serba Usaha"~ "KSU",
+  Jenis_Lembaga.y=="Koperasi Serba Usaha LEPP M3"~ "KSU LEPP",
+  Jenis_Lembaga.y=="Koperasi Simpan Pinjam"~ "KSP",
+  Jenis_Lembaga.y=="Koperasi Simpan Pinjam Pembiayaan Syariah"~ "KSPPS",
+  Jenis_Lembaga.y=="Koperasi Wanita"~ "KOPWAN",
+  Jenis_Lembaga.y=="Koperasi Wanita (Pengajian)"~ "KOPWAN PENGAJIAN",
+  Jenis_Lembaga.y=="Lembaga Keuangan Desa"~ "LKD",
+  Jenis_Lembaga.y=="Lembaga Keuangan Kecamatan"~ "LKK",
+  Jenis_Lembaga.y=="Lembaga Pemberdaya Ekonomi Desa"~ "LPED",
+  Jenis_Lembaga.y=="LKMA"~ "LKMA",
+  Jenis_Lembaga.y=="PDPK/BKPD"~ "PDPK/BKPD",
+  Jenis_Lembaga.y=="PNPM"~ "PNPM",
+  Jenis_Lembaga.y=="Unit Simpan Pinjam BUMDes"~ "USP BUMDES",
+  Jenis_Lembaga.y==NA~ "",
+  Jenis_Lembaga.y=="-"~ "",
+  Jenis_Lembaga.y=="0"~ ""
+)) %>% 
+  arrange(Periode_Laporan) %>% 
+  filter(`100_JmlhAst`!=0,!grepl('Agregat', Nama_Original)) %>% 
+  select(Sandi_LKM,Nama_Original, Periode_Laporan,period, Tanggal, `100_JmlhAst`, DPK, logaset, Jenis_Lembaga.y, asetgrup, `Pinjaman Yang Diberikan (netto)`,jenislembaga, deposittaking, "Cakupan_Wilayah.y", "KR/KOJK.x")
+bee <- finaldata %>% filter(Periode_Laporan=="20212",!grepl('Agregat', Nama_Original))
+treemap_lkm <- finaldata %>% filter(Periode_Laporan=="20212",!grepl('Agregat', Nama_Original), `100_JmlhAst`!=0) %>% select(Sandi_LKM, `100_JmlhAst`,jenislembaga, Nama_Original)
+treemap_lkm <- treemap_lkm %>% rename("Aset"=`100_JmlhAst`)
+rid2 <- rid %>% filter(Periode_Laporan=="20212")
+vial <- rid %>% filter(Periode_Laporan=="20212")
+vial1 <- vial %>% group_by(deposittaking,Cakupan_Wilayah.y, asetgrup, jenislembaga) %>% summarize(freq=n())
+
+color_dsin <- c("#2196F2","#F34336","#4CAE50","#FEC007", "#673AB6","#3F51B4",
+          "#00BBD3","#009688","#8BC24A","#795548",
+          "#9D9D9D","#607D8A","#9B27AF","#E1BEE7","#E81E63","#CCDB39")
+color_dlkm <- c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000')
+manualcolors<-c('black','forestgreen', 'red2', 'orange', 'cornflowerblue', 
+                'magenta', 'darkolivegreen4', 'indianred1', 'tan4', 'darkblue', 
+                'mediumorchid1','firebrick4',  'yellowgreen', 'lightsalmon', 'tan3',
+                "tan1",'darkgray', 'wheat4', '#DDAD4B', 'chartreuse', 
+                'seagreen1', 'moccasin', 'mediumvioletred', 'seagreen','cadetblue1',
+                "darkolivegreen1" ,"tan2" ,   "tomato3" , "#7CE3D8","gainsboro")
+
+```
+
+ <style>
+ .table>tbody>tr>td{
+   padding: 2px;
+ }
+ </style>
+ 
+ {data-navmenu="" data-icon="fa-home"}
+===================================== 
+
+
+
+<p style="line-height:200px;height:200px;margin:auto;text-align:center;width:50%;border:3px;padding:10px;font-size:2rem;color:red">
+OTORITAS JASA KEUANGAN
+</p>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+<p style="background:transparent;position:fixed;left:50%;bottom:20px;transform:translate(-50%, -50%);margin: 0 auto;">
+Hak Cipta © 2022. Otoritas Jasa Keuangan. All Right Reserved.
+</p>
+
+
+
+
+
+
+
+
+Industry {data-navmenu="DASHBOARD" data-icon="fa-industry"}
+===================================== 
+
+
+Sidebar {.sidebar}
+-------------------------------------
+
+<br>
+```{r selectinput11, echo=FALSE, message=FALSE, warning=FALSE}
+selectInput("sandilkm1", "INDUSTRY LKM:",
+      list("AGREGAT NASIONAL" = 999999999,
+           `BWM`=list("BWM"=171717171, "NON BWM"=181818181),
+        `BADAN HUKUM` = list("PT"=666666666, "KOPERASI"=555555555),
+        `PRINSIP USAHA` = list("KONVENSIONAL"=777777777, "SYARIAH"=888888888),
+        `PT` = list("PT KONVENSIONAL"=222222222, "PT SYARIAH"=444444444),
+        `KOPERASI` = list("KOPERASI KONVENSIONAL"=111111111, "KOPERASI SYARIAH"=333333333))
+    )
+```
+
+```{r selectinput12, echo=FALSE, message=FALSE, warning=FALSE}
+selectInput("periode1", "PERIODE:",
+                c("20161"="20161",
+                  "20162"="20162",
+                  "20163"="20163",
+                  "20171"="20171",
+                  "20172"="20172",
+                  "20173"="20173",
+                  "20181"="20181",
+                  "20182"="20182",
+                  "20183"="20183",
+                  "20191"="20191",
+                  "20192"="20192",
+                  "20193"="20193",
+                  "20201"="20201",
+                  "20202"="20202",
+                  "20203"="20203",
+                  "20211"="20211",
+                  "20212"="20212",
+                  "20213"="20213",
+                  "20221"="20221",
+                  "20222"="20222",
+                  "20223"="20223",
+                  "20231"="20231",
+                  "20232"="20232",
+                  "20233"="20233"
+                  ), selected = '20213')
+```
+
+```{r render11, echo=FALSE, message=FALSE, warning=FALSE}
+# renderText({
+#       paste("You chose", input$sandilkm1, class(input$sandilkm1))
+#     })
+```
+
+<br></br>
+
+```{r render12, echo=FALSE, message=FALSE, warning=FALSE}
+# renderText({
+#       paste("You chose", input$periode1, class(input$sandilkm1))
+#     })
+```
+
+<br></br>
+
+```{r render13, echo=FALSE, message=FALSE, warning=FALSE}
+# a <- "555555555"
+# b <- "20163"
+# glimpse(financing1)
+# codeperiod <-  financing1 %>%
+#     dplyr::filter(Sandi_LKM==a & Periode_Laporan==b) %>%
+#     select(Sandi_Periode)%>% as.character()
+
+filtered <- reactive({
+        sandi <- input$sandilkm1
+        periode <- input$periode1
+
+        financing1 %>%
+          filter(Sandi_LKM==sandi& Periode_Laporan==periode) %>% 
+          select(Sandi_Periode)%>% as.character() 
+    })
+
+# .data[[var]]
+
+renderText({
+  HTML(paste(
+   paste(
+    "Sandi :", input$sandilkm1," ", class(input$sandilkm1)
+    ),
+   paste(
+    "Periode :", input$periode1," ", class(input$periode1)
+    ),
+   paste(
+    "Sandi_Periode :", filtered()
+    ),
+   sep = '\n'
+  ))
+
+})
+```
+
+Column {data-width=500}
+-------------------------------------
+
+### FINANCIAL SUMMARY (Millions Rp) {data-height=515}
+
+```{r fs1, echo=FALSE, message=FALSE, warning=FALSE}
+# contoh----------------
+#   fs_data <-   finaldata %>% mutate(
+#   "Net Loan"=(`Pinjaman Yang Diberikan (netto)`)/1000000,
+#   "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/1000000,
+#   "Total Assets"=(`100_JmlhAst`)/1000000,
+#   "Net Income"=(`900_SHU/LbRgThnBrjln`)/1000000,
+#   "Equity to Total Assets"=( `300_JmlhEkts`/`100_JmlhAst`),
+#   "Tangible Equity Ratio"=(`140_AstTtpInvntrsATI`- `141_(AkmlsPnystnATI)`)/ `300_JmlhEkts`,
+#   "Loans to Deposits"=`Pinjaman Yang Diberikan (netto)`/(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+#   "Reserve for Loans to Total Loans" =((`133_(PysnPghpsnPjmn)`+ `135_(MgnMrbhDtnghkn)`+ `138_(MgnIsthnDtnghk)`+ `171_(PyshnPghpsPbyn)`)*-1/ `Pinjaman Yang Diberikan bruto`) )%>%
+#   # filter(Sandi_LKM==999999999 & Periode_Laporan>20191)%>%
+#   filter(Sandi_LKM==999999999  & Periode_Laporan>20191) %>%
+#   arrange(Periode_Laporan) %>% #top_n(8) %>%
+#    mutate(
+#   "Net Loan"=scales::comma(`Net Loan`, accuracy = 5L),
+#   "Net Deposit"=scales::comma(`Net Deposit`,accuracy = 5L),
+#   "Total Assets"=scales::comma(`Total Assets`,accuracy = 5L),
+#   "Net Income"=scales::comma(`Net Income`,accuracy = 5L),
+#   "Equity to Total Assets"=scales::percent(`Equity to Total Assets`,accuracy = 0.1),
+#   "Tangible Equity Ratio"=scales::percent(`Tangible Equity Ratio`,accuracy = 0.1),
+#   "Loans to Deposits"=scales::percent(`Loans to Deposits`,accuracy = 0.1),
+#   "Reserve for Loans to Total Loans" =scales::percent(`Reserve for Loans to Total Loans`, accuracy = 0.1)) %>%
+#   select(rowname, "Net Loan":"Reserve for Loans to Total Loans") %>%
+#   tidyr::pivot_longer(-rowname) %>%
+#   tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+#   # mutate(
+#   # Sparkline=c(
+#   # spk_chr(fs_data$`Net Loan`, type="line"),
+#   # spk_chr(fs_data$`Net Deposit`, type="line"),
+#   # spk_chr(fs_data$`Total Assets`, type="line"),
+#   # spk_chr(fs_data$`Net Income`, type="line"),
+#   # spk_chr(fs_data$`Equity to Total Assets`, type="line"),
+#   # spk_chr(fs_data$`Tangible Equity Ratio`, type="line"),
+#   # spk_chr(fs_data$`Loans to Deposits`, type="line"),
+#   # spk_chr(fs_data$`Reserve for Loans to Total Loans`, type="line"))
+#   # ) %>%
+#   select(Akun,
+#                # Sparkline,
+#                everything())  %>%
+#   knitr::kable(align = c("l","r","r","r","r","r","r","r","r","r","r"), escape = F) %>%
+#   kable_paper("hover",full_width = T) %>% kable_classic_2()
+# 
+# fs_data
+
+# sukses formattabel tanpa sparkline----------
+# renderFormattable({
+#   fs_data <-   finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+#   "Net Loan"=(`Pinjaman Yang Diberikan (netto)`)/1000000,
+#   "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/1000000,
+#   "Total Assets"=(`100_JmlhAst`)/1000000,
+#   "Net Income"=(`900_SHU/LbRgThnBrjln`)/1000000,
+#   "Equity to Total Assets"=( `300_JmlhEkts`/`100_JmlhAst`),
+#   "Tangible Equity Ratio"=(`140_AstTtpInvntrsATI`- `141_(AkmlsPnystnATI)`)/ `300_JmlhEkts`,
+#   "Loans to Deposits"=`Pinjaman Yang Diberikan (netto)`/(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+#   "Reserve for Loans to Total Loans" =((`133_(PysnPghpsnPjmn)`+ `135_(MgnMrbhDtnghkn)`+ `138_(MgnIsthnDtnghk)`+ `171_(PyshnPghpsPbyn)`)*-1/ `Pinjaman Yang Diberikan bruto`) )%>%
+#     filter(Sandi_LKM==input$sandilkm1) %>%
+#     arrange(desc( Periode1))%>%
+#     filter(Periode1<=as.numeric(input$periode1)) %>%
+#     slice(1:8) %>% arrange(Periode1) %>%
+#    mutate(
+#   "Net Loan"=scales::comma(`Net Loan`, accuracy = 5L),
+#   "Net Deposit"=scales::comma(`Net Deposit`,accuracy = 5L),
+#   "Total Assets"=scales::comma(`Total Assets`,accuracy = 5L),
+#   "Net Income"=scales::comma(`Net Income`,accuracy = 5L),
+#   "Equity to Total Assets"=scales::percent(`Equity to Total Assets`,accuracy = 0.1),
+#   "Tangible Equity Ratio"=scales::percent(`Tangible Equity Ratio`,accuracy = 0.1),
+#   "Loans to Deposits"=scales::percent(`Loans to Deposits`,accuracy = 0.1),
+#   "Reserve for Loans to Total Loans" =scales::percent(`Reserve for Loans to Total Loans`, accuracy = 0.1)) %>%
+#   select(rowname, "Net Loan":"Reserve for Loans to Total Loans") %>%
+#   tidyr::pivot_longer(-rowname) %>%
+#   tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+#   select(Akun, everything())
+# 
+# # formattable::formattable(fs_data)
+# formattable::formattable(fs_data,
+#                          align = c("l","r","r","r","r","r","r","r","r","r","r"),
+#                        list(`Value`=color_bar("#FA614B")),table.attr = 'style=" font-family: Arial Narrow";\"')
+# })
+# sukses formattable sparkline------
+# uiOutput("fs1")
+# 
+# output$fs1 <- renderUI({
+# # renderFormattable({
+#   fs_data <-   finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+#   "Net Loan"=(`Pinjaman Yang Diberikan (netto)`)/1000000,
+#   "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/1000000,
+#   "Total Assets"=(`100_JmlhAst`)/1000000,
+#   "Net Income"=(`900_SHU/LbRgThnBrjln`)/1000000,
+#   "Equity to Total Assets"=( `300_JmlhEkts`/`100_JmlhAst`),
+#   "Tangible Equity Ratio"=(`140_AstTtpInvntrsATI`- `141_(AkmlsPnystnATI)`)/ `300_JmlhEkts`,
+#   "Loans to Deposits"=`Pinjaman Yang Diberikan (netto)`/(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+#   "Reserve for Loans to Total Loans" =((`133_(PysnPghpsnPjmn)`+ `135_(MgnMrbhDtnghkn)`+ `138_(MgnIsthnDtnghk)`+ `171_(PyshnPghpsPbyn)`)*-1/ `Pinjaman Yang Diberikan bruto`) )%>%
+#     filter(Sandi_LKM==input$sandilkm1) %>%
+#     arrange(desc( Periode1))%>%
+#     filter(Periode1<=as.numeric(input$periode1)) %>%
+#     slice(1:8) %>% arrange(Periode1)
+# 
+#   fs_data1 <- fs_data%>%
+#    mutate(
+#   "Net Loan"=scales::comma(`Net Loan`, accuracy = 5L),
+#   "Net Deposit"=scales::comma(`Net Deposit`,accuracy = 5L),
+#   "Total Assets"=scales::comma(`Total Assets`,accuracy = 5L),
+#   "Net Income"=scales::comma(`Net Income`,accuracy = 5L),
+#   "Equity to Total Assets"=scales::percent(`Equity to Total Assets`,accuracy = 0.1),
+#   "Tangible Equity Ratio"=scales::percent(`Tangible Equity Ratio`,accuracy = 0.1),
+#   "Loans to Deposits"=scales::percent(`Loans to Deposits`,accuracy = 0.1),
+#   "Reserve for Loans to Total Loans" =scales::percent(`Reserve for Loans to Total Loans`, accuracy = 0.1)) %>%
+#   select(rowname, "Net Loan":"Reserve for Loans to Total Loans") %>%
+#   tidyr::pivot_longer(-rowname) %>%
+#   tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+#     mutate(
+#   Sparkline=c(
+#   spk_chr(fs_data$`Net Loan`, type="line"),
+#   spk_chr(fs_data$`Net Deposit`, type="line"),
+#   spk_chr(fs_data$`Total Assets`, type="line"),
+#   spk_chr(fs_data$`Net Income`, type="line"),
+#   spk_chr(fs_data$`Equity to Total Assets`, type="line"),
+#   spk_chr(fs_data$`Tangible Equity Ratio`, type="line"),
+#   spk_chr(fs_data$`Loans to Deposits`, type="line"),
+#   spk_chr(fs_data$`Reserve for Loans to Total Loans`, type="line"))
+#   ) %>%
+#   select(Akun,Sparkline, everything()) %>% 
+#     format_table() %>%
+#      htmltools::HTML() %>%
+#       div() %>%
+#       # use new sparkline helper for adding dependency
+#       spk_add_deps() 
+# 
+# 
+# fs_data1
+# 
+# })
+
+
+
+# sukses kableextra sparkline------
+uiOutput("fs1")
+
+output$fs1 <- renderUI({
+# renderFormattable({
+  fs_data <-   finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+  "Net Loan"=(`Pinjaman Yang Diberikan (netto)`)/1000000,
+  "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/1000000,
+  "Total Assets"=(`100_JmlhAst`)/1000000,
+  "Net Income"=(`900_SHU/LbRgThnBrjln`)/1000000,
+  "Equity/Total Assets"=( `300_JmlhEkts`/`100_JmlhAst`),
+  "Tangible Equity Ratio"=(`140_AstTtpInvntrsATI`- `141_(AkmlsPnystnATI)`)/ `300_JmlhEkts`,
+  "Loans/Deposits"=`Pinjaman Yang Diberikan (netto)`/(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+  "Reserve Loans/Total Loans" =((`133_(PysnPghpsnPjmn)`+ `135_(MgnMrbhDtnghkn)`+ `138_(MgnIsthnDtnghk)`+ `171_(PyshnPghpsPbyn)`)*-1/ `Pinjaman Yang Diberikan bruto`) )%>%
+    filter(Sandi_LKM==input$sandilkm1) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode1)) %>%
+    slice(1:7) %>% arrange(Periode1)
+
+  fs_data1 <- fs_data%>%
+   mutate(
+  "Net Loan"=scales::comma(`Net Loan`, accuracy = 5L),
+  "Net Deposit"=scales::comma(`Net Deposit`,accuracy = 5L),
+  "Total Assets"=scales::comma(`Total Assets`,accuracy = 5L),
+  "Net Income"=scales::comma(`Net Income`,accuracy = 5L),
+  "Equity/Total Assets"=scales::percent(`Equity/Total Assets`,accuracy = 0.1),
+  "Tangible Equity Ratio"=scales::percent(`Tangible Equity Ratio`,accuracy = 0.1),
+  "Loans/Deposits"=scales::percent(`Loans/Deposits`,accuracy = 0.1),
+  "Reserve Loans/Total Loans" =scales::percent(`Reserve Loans/Total Loans`, accuracy = 0.1)) %>%
+  select(rowname, "Net Loan":"Reserve Loans/Total Loans") %>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+    mutate(
+  Sparkline=c(
+  spk_chr(fs_data$`Net Loan`, type="bar"),
+  spk_chr(fs_data$`Net Deposit`, type="bar"),
+  spk_chr(fs_data$`Total Assets`, type="bar"),
+  spk_chr(fs_data$`Net Income`, type="bar"),
+  spk_chr(fs_data$`Equity/Total Assets`, type="line"),
+  spk_chr(fs_data$`Tangible Equity Ratio`, type="line"),
+  spk_chr(fs_data$`Loans/Deposits`, type="line"),
+  spk_chr(fs_data$`Reserve Loans/Total Loans`, type="line"))
+  ) %>%
+  select(Akun,Sparkline, everything()) %>%
+    knitr::kable(
+      "html",
+      align = c("l","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+    htmltools::HTML() %>%
+    div() %>%
+    # use new sparkline helper for adding dependency
+    spk_add_deps()
+
+
+fs_data1
+
+})
+
+#------kableextra tanpa sparkline------
+# 
+# uiOutput("fs1")
+# 
+# output$fs1 <- renderUI({
+# library(sparkline)
+#   sparkline::sparkline(0)
+#   fs_data <-   finaldata %>% mutate(
+#   "Net Loan"=(`Pinjaman Yang Diberikan (netto)`)/1000000,
+#   "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/1000000,
+#   "Total Assets"=(`100_JmlhAst`)/1000000,
+#   "Net Income"=(`900_SHU/LbRgThnBrjln`)/1000000,
+#   "Equity to Total Assets"=( `300_JmlhEkts`/`100_JmlhAst`),
+#   "Tangible Equity Ratio"=(`140_AstTtpInvntrsATI`- `141_(AkmlsPnystnATI)`)/ `300_JmlhEkts`,
+#   "Loans to Deposits"=`Pinjaman Yang Diberikan (netto)`/(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+#   "Reserve for Loans to Total Loans" =((`133_(PysnPghpsnPjmn)`+ `135_(MgnMrbhDtnghkn)`+ `138_(MgnIsthnDtnghk)`+ `171_(PyshnPghpsPbyn)`)*-1/ `Pinjaman Yang Diberikan bruto`) )%>%
+#   # filter(Sandi_LKM==999999999 & Periode_Laporan>20191)%>%
+#   filter(Sandi_LKM==999999999  & Periode_Laporan>20191) %>%
+#   arrange(Periode_Laporan) %>% #top_n(8) %>%
+#    mutate(
+#   "Net Loan"=scales::comma(`Net Loan`, accuracy = 5L),
+#   "Net Deposit"=scales::comma(`Net Deposit`,accuracy = 5L),
+#   "Total Assets"=scales::comma(`Total Assets`,accuracy = 5L),
+#   "Net Income"=scales::comma(`Net Income`,accuracy = 5L),
+#   "Equity to Total Assets"=scales::percent(`Equity to Total Assets`,accuracy = 0.1),
+#   "Tangible Equity Ratio"=scales::percent(`Tangible Equity Ratio`,accuracy = 0.1),
+#   "Loans to Deposits"=scales::percent(`Loans to Deposits`,accuracy = 0.1),
+#   "Reserve for Loans to Total Loans" =scales::percent(`Reserve for Loans to Total Loans`, accuracy = 0.1)) %>%
+#   select(rowname, "Net Loan":"Reserve for Loans to Total Loans") %>%
+#   tidyr::pivot_longer(-rowname) %>%
+#   tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+#   # mutate(
+#   # Sparkline=c(
+#   # spk_chr(fs_data$`Net Loan`, type="line"),
+#   # spk_chr(fs_data$`Net Deposit`, type="line"),
+#   # spk_chr(fs_data$`Total Assets`, type="line"),
+#   # spk_chr(fs_data$`Net Income`, type="line"),
+#   # spk_chr(fs_data$`Equity to Total Assets`, type="line"),
+#   # spk_chr(fs_data$`Tangible Equity Ratio`, type="line"),
+#   # spk_chr(fs_data$`Loans to Deposits`, type="line"),
+#   # spk_chr(fs_data$`Reserve for Loans to Total Loans`, type="line"))
+#   # ) %>%
+#   select(
+#     Akun,
+#     # Sparkline,
+#     everything())  %>%
+#     knitr::kable(
+#       "html", 
+#       align = c("l","r","r","r","r","r","r","r","r"), 
+#       escape = F) %>%
+#     kableExtra::kable_styling(
+#       bootstrap_options = c("hover","striped"),
+#       html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+#       full_width = T) %>% HTML()
+# 
+# # HTML(
+# # fs_data
+# # )
+# })
+
+```
+
+### BALANCE SHEET RATIO {data-height=310}
+
+```{r bsratio, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("bsratio")
+
+output$bsratio <- renderUI({
+
+bsr_data <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+  "Cash&Equi/Total Assets"=`Kas dan Setara Kas (Kas Lancar)`/`100_JmlhAst` ,
+  "Loans/Total Assets"=`Pinjaman Yang Diberikan (netto)`/`100_JmlhAst`,
+  "Deposits/Total Assets"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/`100_JmlhAst`,
+  "Total Debt/Total Equity"=(`200_JUMLAHLIABILITAS`+`270_JmlhDnSyrkhTmprr`)/`300_JmlhEkts`) %>%
+    filter(Sandi_LKM==input$sandilkm1) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode1)) %>%
+    slice(1:7) %>% arrange(Periode1) %>%
+  select(rowname, "Cash&Equi/Total Assets":"Total Debt/Total Equity") 
+bsr_fiq <- bsr_data %>%
+  mutate(
+  "Cash&Equi/Total Assets"=scales::percent(`Cash&Equi/Total Assets`,accuracy = 0.1),
+  "Loans/Total Assets"=scales::percent(`Loans/Total Assets`,accuracy = 0.1),
+  "Deposits/Total Assets"=scales::percent(`Deposits/Total Assets`,accuracy = 0.1),
+  "Total Debt/Total Equity" =scales::percent(`Total Debt/Total Equity`, accuracy = 0.1)) %>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% 
+  rename("Akun"=name) %>%
+  mutate(
+  Sparkline=c(
+  spk_chr(bsr_data$`Cash&Equi/Total Assets`, type="line"),
+  spk_chr(bsr_data$`Loans/Total Assets`, type="line"),
+  spk_chr(bsr_data$`Deposits/Total Assets`, type="line"),
+  spk_chr(bsr_data$`Total Debt/Total Equity`, type="line"))) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+      align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+})
+```
+
+### INCOME STATEMENT RATIO
+
+```{r isratio, echo=FALSE, message=FALSE, warning=FALSE}
+
+uiOutput("isratio")
+
+output$isratio <- renderUI({
+
+isr_data <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+    "Net Interest Margin"=(`430_JmlhPndptnOprsnl`-`510_BbnBng/BbnBnsWdh`-`440_HkPhkKtgAtsBgHsl`)/`Pinjaman Yang Diberikan bruto`,
+    "Efficiency Ratio"= (`560_JmlhBbnOprsnl`-`510_BbnBng/BbnBnsWdh`)/`430_JmlhPndptnOprsnl`,
+    "Operating Margin"=`750_SHU/LbRgSblmPjk`/`430_JmlhPndptnOprsnl`,
+    # "Effective Tax Rate"=`800_TksrnPjkPnghsln`/`750_SHU/LbRgSblmPjk`,
+    "Profit Margin"=((`430_JmlhPndptnOprsnl`-`510_BbnBng/BbnBnsWdh`-`440_HkPhkKtgAtsBgHsl`)/`430_JmlhPndptnOprsnl`),
+    "Operating Income/Total Capital"=`430_JmlhPndptnOprsnl`/`300_JmlhEkts`,
+    "Return on Capital"= `900_SHU/LbRgThnBrjln`/`300_JmlhEkts`,
+    # "Return on Common Equity"=`900_SHU/LbRgThnBrjln`/`311_SpnPkk/MdlDstr`,
+    "Return on Assets"= `900_SHU/LbRgThnBrjln`/`100_JmlhAst` ) %>%
+    filter(Sandi_LKM==input$sandilkm1) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode1)) %>%
+    slice(1:7) %>% arrange(Periode1) %>% 
+  select(rowname, "Net Interest Margin":"Return on Assets") 
+
+
+
+isr_fig <- isr_data%>%
+  mutate(
+  "Net Interest Margin"=scales::percent(`Net Interest Margin`,accuracy = 0.1),
+  "Efficiency Ratio"=scales::percent(`Efficiency Ratio`,accuracy = 0.1),
+  "Operating Margin"=scales::percent(`Operating Margin`,accuracy = 0.1),
+  # "Effective Tax Rate"=scales::percent(`Effective Tax Rate`,accuracy = 0.1),
+  "Profit Margin" =scales::percent(`Profit Margin`, accuracy = 0.1),
+  "Operating Income/Total Capital"=scales::percent(`Operating Income/Total Capital`,accuracy = 0.1),
+  "Return on Capital"=scales::percent(`Return on Capital`,accuracy = 0.1),
+  # "Return on Common Equity" =scales::percent(`Return on Common Equity`, accuracy = 0.1),
+  "Return on Assets"=scales::percent(`Return on Assets`,accuracy = 0.1) ) %>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+   mutate(
+  Sparkline=c(
+  spk_chr(isr_data$`Net Interest Margin`, type="line"),
+  spk_chr(isr_data$`Efficiency Ratio`, type="line"),
+  spk_chr(isr_data$`Operating Margin`, type="line"),
+  spk_chr(isr_data$`Profit Margin`, type="line"),
+  spk_chr(isr_data$`Operating Income/Total Capital`, type="line"),
+  spk_chr(isr_data$`Return on Capital`, type="line"),
+  spk_chr(isr_data$`Return on Assets`, type="line")
+  )) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+      align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+})
+```
+
+Column {data-width=500  }
+-------------------------------------
+
+### BALANCE SHEET {data-height=500}
+
+```{r BS, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("BS")
+
+output$BS <- renderUI({
+
+BS_data <- finaldata %>%  mutate(Periode1=as.numeric(Periode_Laporan)*1) %>%
+    select(
+  rowname,Periode1,Sandi_LKM,
+  `100_JmlhAst`,
+  `Kas dan Setara Kas (Kas Lancar)`,
+  `Pinjaman Yang Diberikan (netto)`,
+  `200_JUMLAHLIABILITAS`,
+  `220_Smpnn:`,
+  `223_TbngnWdh`,
+  `270_JmlhDnSyrkhTmprr`,
+  `250_Mdhrbh`,
+  `260_Msyrkh`,
+  `300_JmlhEkts`,
+  `310_Mdl`,
+  `340_SldLb/Rg`
+  ) %>% 
+   filter(Sandi_LKM==999999999 ) %>%
+  # filter(Sandi_LKM==input$sandilkm1) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(20213)) %>%
+    # filter(Periode1<=as.numeric(input$periode1)) %>%
+    slice(1:7) %>% arrange(Periode1) 
+    
+
+BS_table <- BS_data%>%
+     mutate(
+  "ASET"=scales::comma(`100_JmlhAst`/1000000,accuracy = 5L),
+  "Kas dan Setara Kas"=scales::comma(`Kas dan Setara Kas (Kas Lancar)`/1000000,accuracy = 5L),
+  "Pinjaman/Pembiayaan"=scales::comma(`Pinjaman Yang Diberikan (netto)`/1000000,accuracy = 5L),
+  "LIABILITAS"=scales::comma(`200_JUMLAHLIABILITAS`/1000000,accuracy = 5L),
+  "Simpanan"=scales::comma(`220_Smpnn:`/1000000,accuracy = 5L),
+  "Tabungan Wadiah"=scales::comma(`223_TbngnWdh`/1000000,accuracy = 5L),
+  "DANA SYIRKAH TEMP"=scales::comma(`270_JmlhDnSyrkhTmprr`/1000000,accuracy = 5L),
+  "Mudharabah"=scales::comma(`250_Mdhrbh`/1000000,accuracy = 5L),
+  "Musyarakah"=scales::comma(`260_Msyrkh`/1000000,accuracy = 5L),
+  "EKUITAS"=scales::comma(`300_JmlhEkts`/1000000,accuracy = 5L),
+  "Modal"=scales::comma(`310_Mdl`/1000000,accuracy = 5L)) %>%
+  select(rowname, ASET:Modal)%>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% 
+  rename("Akun"=name) %>%
+  mutate(
+  Sparkline=c(
+  spk_chr(BS_data$`100_JmlhAst`, type="bar"),
+  spk_chr(BS_data$`Kas dan Setara Kas (Kas Lancar)`, type="bar"),
+  spk_chr(BS_data$`Pinjaman Yang Diberikan (netto)`, type="bar"),
+  spk_chr(BS_data$`200_JUMLAHLIABILITAS`, type="bar"),
+  spk_chr(BS_data$`220_Smpnn:`, type="bar"),
+  spk_chr(BS_data$`223_TbngnWdh`, type="bar"),
+  spk_chr(BS_data$`270_JmlhDnSyrkhTmprr`, type="bar"),
+  spk_chr(BS_data$`250_Mdhrbh`, type="bar"),
+  spk_chr(BS_data$`260_Msyrkh`, type="bar"),
+  spk_chr(BS_data$`300_JmlhEkts`, type="bar"),
+  spk_chr(BS_data$`310_Mdl`, type="bar")
+  )) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+      align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+    kableExtra::add_indent(c(2, 3, 5,6,8,9,11)) %>%
+    kableExtra::row_spec(c(1,4,7,10), bold = T,background = "#FCE4D6") %>%
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+})
+
+```
+
+### INCOME STATEMENT 
+
+```{r IS, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("IS")
+
+output$IS <- renderUI({
+
+
+IS_data <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1) %>%
+    filter(Sandi_LKM==input$sandilkm1) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode1)) %>%
+    slice(1:7) %>% arrange(Periode1) %>%
+  select(
+  rowname,
+  `410_PndptnBng`,
+  `411_PndptnMrgnMrbhh`,
+  `412_PndptnSlm`,
+  `413_PndptnMrgnIstshn`,
+  `414_PndptnIjrh`,
+  `415_PdptnBgHslMdhrbh`,
+  `416_PdptnBgHslMsyrkh`,
+  `420_PndptnOprsnlLnny`,
+  `430_JmlhPndptnOprsnl`,
+  `440_HkPhkKtgAtsBgHsl`,
+  `450_PdOpSthDstrBgHsl`,
+  `510_BbnBng/BbnBnsWdh`,
+  `520_BbPyshPghpsnPjmn`,
+  `530_BbnPnystn(ATI)`,
+  `540_BbnTngKrj`,
+  `545_BbPyshPghpsnPbyn`,
+  `550_BbnOprsnlLnny`,
+  `560_JmlhBbnOprsnl`,
+  `570_SHUOp/LbRgOprsnl`,
+  `600_PndptnNnOprsnl`,
+  `700_BbnNnOprsnl`,
+  `750_SHU/LbRgSblmPjk`,
+  `800_TksrnPjkPnghsln`,
+  `900_SHU/LbRgThnBrjln`
+  ) %>%
+  mutate("Pendptan Operasional"=  `410_PndptnBng`+`411_PndptnMrgnMrbhh`+
+  `412_PndptnSlm`+  `413_PndptnMrgnIstshn`+  `414_PndptnIjrh`+
+  `415_PdptnBgHslMdhrbh`+  `416_PdptnBgHslMsyrkh`,
+  "Beban Operasional"=  `510_BbnBng/BbnBnsWdh`+  `520_BbPyshPghpsnPjmn`+
+  `530_BbnPnystn(ATI)`+  `540_BbnTngKrj`+  `545_BbPyshPghpsnPbyn`) %>%
+  rename(
+  "Pendapatan Bunga"=`410_PndptnBng`,
+  "Pendapatan Margin Murabahah"=`411_PndptnMrgnMrbhh`,
+  "Pendapatan Salam"=`412_PndptnSlm`,
+  "Pendapatan Margin Istishna"=`413_PndptnMrgnIstshn`,
+  "Pendapatan Ijarah"=`414_PndptnIjrh`,
+  "Pendapatan Bagi Hasil Mudharabah"=`415_PdptnBgHslMdhrbh`,
+  "Pendapatan Bagi Hasil Musyarakah"=`416_PdptnBgHslMsyrkh`,
+  "Pendptan Operasional Lain"=`420_PndptnOprsnlLnny`,
+  "Jml Pendptan Operasional"=`430_JmlhPndptnOprsnl`,
+  "HakPihakKetiga Bagi Hasil"=`440_HkPhkKtgAtsBgHsl`,
+  "Pendapatan Operasional Distribusi"=`450_PdOpSthDstrBgHsl`,
+  "Beban Bunga/Bonus Wadiah"=`510_BbnBng/BbnBnsWdh`,
+  "Beban Peny. Hpsn Pinjaman"=`520_BbPyshPghpsnPjmn`,
+  "Beban Penyusutan ATI"=`530_BbnPnystn(ATI)`,
+  "Beban Tenaga Kerja"=`540_BbnTngKrj`,
+  "Beban Peny. Hpsn Pembiayaan"=`545_BbPyshPghpsnPbyn`,
+  "Beban Operasional Lain"=`550_BbnOprsnlLnny`,
+  "Jumlah Beban Operasional"=`560_JmlhBbnOprsnl`,
+  "Laba/Rugi Operasional"=`570_SHUOp/LbRgOprsnl`,
+  "Pendapatan Non Operasional"=`600_PndptnNnOprsnl`,
+  "Beban Non Operasional"=`700_BbnNnOprsnl`,
+  "LabaRugiSHU Sbl Pajak"=`750_SHU/LbRgSblmPjk`,
+  "Taksiran Pajak Penghasilan"=`800_TksrnPjkPnghsln`,
+  "LabaRugiSHU Thn Berjalan"=`900_SHU/LbRgThnBrjln`
+  ) %>%
+  select(rowname,"Jml Pendptan Operasional",
+         "Pendptan Operasional",
+         "Pendptan Operasional Lain",
+         "HakPihakKetiga Bagi Hasil",
+         "Jumlah Beban Operasional",
+         "Beban Operasional",
+         "Beban Operasional Lain",
+         "Laba/Rugi Operasional",
+         "LabaRugiSHU Sbl Pajak",
+         "LabaRugiSHU Thn Berjalan") 
+
+is_table <- IS_data%>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+    dplyr::mutate_if(.predicate = is.numeric, funs(./1000000)) %>%
+  mutate(across(where(is.numeric), round, 0)) %>%
+  dplyr::mutate_if(.predicate = is.numeric, scales::comma) %>%
+    mutate(
+  Sparkline=c(
+  spk_chr(IS_data$`Jml Pendptan Operasional`, type="bar"),
+  spk_chr(IS_data$`Pendptan Operasional`, type="bar"),
+  spk_chr(IS_data$`Pendptan Operasional Lain`, type="bar"),
+  spk_chr(IS_data$`HakPihakKetiga Bagi Hasil`, type="bar"),
+  spk_chr(IS_data$`Jumlah Beban Operasional`, type="bar"),
+  spk_chr(IS_data$`Beban Operasional`, type="bar"),
+  spk_chr(IS_data$`Beban Operasional Lain`, type="bar"),
+  spk_chr(IS_data$`Laba/Rugi Operasional`, type="bar"),
+  spk_chr(IS_data$`LabaRugiSHU Sbl Pajak`, type="bar"),
+  spk_chr(IS_data$`LabaRugiSHU Thn Berjalan`, type="bar")
+  )) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+      align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+  kableExtra::add_indent(c(2,3,6,7)) %>% 
+  kableExtra::row_spec(c(1,4,5,8,9,10), bold = T,background = "#BDD7EE") %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+  
+})
+```
+
+
+
+Regional {data-navmenu="DASHBOARD" data-icon="fa-globe"}
+===================================== 
+
+Sidebar {.sidebar}
+-------------------------------------
+
+<br>
+```{r selectinput21, echo=FALSE, message=FALSE, warning=FALSE}
+selectInput("sandilkm2", "INDUSTRY LKM:",
+      list("AGREGAT NASIONAL" = "999999999",
+        `BADAN HUKUM` = list("PT"="666666666", "KOPERASI"="555555555"),
+        `PRINSIP USAHA` = list("KONVENSIONAL"="777777777", "SYARIAH"="888888888"),
+        `PT` = list("PT KONVENSIONAL"="222222222", "PT SYARIAH"="444444444"),
+        `KOPERASI` = list("KOPERASI KONVENSIONAL"="111111111", "KOPERASI SYARIAH"="333333333"))
+    )
+```
+
+```{r selectinput22, echo=FALSE, message=FALSE, warning=FALSE}
+selectInput("periode2", "PERIODE:",
+                c("20161"="20161",
+                  "20162"="20162",
+                  "20163"="20163",
+                  "20171"="20171",
+                  "20172"="20172",
+                  "20173"="20173",
+                  "20181"="20181",
+                  "20182"="20182",
+                  "20183"="20183",
+                  "20191"="20191",
+                  "20192"="20192",
+                  "20193"="20193",
+                  "20201"="20201",
+                  "20202"="20202",
+                  "20203"="20203",
+                  "20211"="20211",
+                  "20212"="20212",
+                  "20213"="20213",
+                  "20221"="20221",
+                  "20222"="20222",
+                  "20223"="20223",
+                  "20231"="20231",
+                  "20232"="20232",
+                  "20233"="20233"
+                  ))
+```
+
+```{r render21, echo=FALSE, message=FALSE, warning=FALSE}
+renderText({
+      paste("You chose", input$sandilkm2)
+    })
+```
+
+<br></br>
+
+```{r render22, echo=FALSE, message=FALSE, warning=FALSE}
+renderText({
+      paste("You chose", input$periode2)
+    })
+```
+
+<br></br>
+
+```{r render23, echo=FALSE, message=FALSE, warning=FALSE}
+paramcode <- reactive({ financing1 %>% 
+    filter(Sandi_LKM==input$sandilkm2, Periode_Laporan==input$periode2) %>% 
+    select(Sandi_Periode)%>% as.character() 
+})
+renderText({paramcode()})
+```
+
+
+Row {data-height=300}
+-------------------------------------
+
+### Basic card
+
+Some descriptive text here.
+
+
+### 
+
+No header should appear above. Content should be overflowing
+
+```{r, echo = TRUE}
+# Some pretty R code
+str(mtcars)
+```
+
+
+
+
+Row
+-------------------------------------
+   
+### Primary background {.bg-primary}
+
+This 'card' has a `.bg-primary` class.
+
+### Secondary background {.bg-secondary}
+
+This 'card' has a `.bg-secondary` class (only supported in BS4+).
+
+
+
+Company {data-navmenu="DASHBOARD" data-icon="fa-id-badge" data-orientation=rows}  
+=====================================     
+   
+Sidebar {.sidebar}
+-------------------------------------
+
+<br>
+
+```{r sidebar3aa, echo=FALSE}
+
+selectizeInput(inputId = "namalkm3",
+                                               label = "PILIH LKM",
+                                               choices = namalkm$namalkm,
+                                               selected = "PANDEGLANG BERKAH",
+                                               multiple = FALSE # allow for multiple inputs
+                                               ,options = list(create = FALSE, maxOptions = 10000L)  # if TRUE, allows newly created inputs))
+                                )
+
+# selectInput("namalkm3", "NAMA LKM:",
+#       c(Choose='AGUNG REJEKI', namalkm$namalkm), selectize=TRUE)
+
+```
+
+```{r sidebar3ba, echo=FALSE}
+selectInput("periode3", "PERIODE:",
+                c("20161"="20161",
+                  "20162"="20162",
+                  "20163"="20163",
+                  "20171"="20171",
+                  "20172"="20172",
+                  "20173"="20173",
+                  "20181"="20181",
+                  "20182"="20182",
+                  "20183"="20183",
+                  "20191"="20191",
+                  "20192"="20192",
+                  "20193"="20193",
+                  "20201"="20201",
+                  "20202"="20202",
+                  "20203"="20203",
+                  "20211"="20211",
+                  "20212"="20212",
+                  "20213"="20213",
+                  "20221"="20221",
+                  "20222"="20222",
+                  "20223"="20223",
+                  "20231"="20231",
+                  "20232"="20232",
+                  "20233"="20233"
+                  ), selected = "20213")
+```
+
+```{r test3aaa, echo=FALSE}
+
+renderText({
+  sandilkm3    <-  namalkm %>% filter(namalkm==input$namalkm3) %>% select(Sandi_LKM) %>% as.character()
+    paste("You chose:"," - ", input$namalkm3," - ", input$periode3," - ", sandilkm3  ," - ", class(sandilkm3))
+    })
+
+```
+
+
+Row 
+-------------------------------------
+
+### KELEMBAGAAN
+```{r aaaaa, echo=FALSE}
+renderText({
+  sandilkm3    <-  namalkm %>% 
+                              filter(namalkm==input$namalkm3) %>% 
+                              select(Sandi_LKM, Nama_Original) %>% 
+                              as.character()
+  paste("You chose:"," - ", sandilkm3)
+})
+```
+
+
+
+### KEY INDICATOR
+
+Row { .tabset}
+-------------------------------------
+
+### BALANCE SHEET 
+
+```{r BS3a, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("BS3")
+
+output$BS3 <- renderUI({
+# sandilkm3 <- "332600011"
+# input <-  data.frame(periode3 = c("20171"))
+
+sandilkm3    <-  namalkm %>% 
+                              filter(namalkm==input$namalkm3) %>% 
+                              select(Sandi_LKM) %>% 
+                              as.character()
+BS_data3 <- finaldata %>%  mutate(Periode1=as.numeric(Periode_Laporan)*1) %>%
+    select(
+  rowname,Periode1,Sandi_LKM,
+  `100_JmlhAst`,
+  `Kas dan Setara Kas (Kas Lancar)`,
+  `Pinjaman Yang Diberikan (netto)`,
+  `200_JUMLAHLIABILITAS`,
+  `220_Smpnn:`,
+  `223_TbngnWdh`,
+  `270_JmlhDnSyrkhTmprr`,
+  `250_Mdhrbh`,
+  `260_Msyrkh`,
+  `300_JmlhEkts`,
+  `310_Mdl`,
+  `340_SldLb/Rg`
+  ) %>% 
+   filter(Sandi_LKM %in% sandilkm3) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode3)) %>%
+    slice(1:9) %>% arrange(Periode1) 
+    
+
+BS_table3 <- BS_data3%>%
+     mutate(
+  "ASET"=scales::comma(`100_JmlhAst`/1000000,accuracy = 5L),
+  "Kas dan Setara Kas"=scales::comma(`Kas dan Setara Kas (Kas Lancar)`/1000000,accuracy = 5L),
+  "Pinjaman/Pembiayaan"=scales::comma(`Pinjaman Yang Diberikan (netto)`/1000000,accuracy = 5L),
+  "LIABILITAS"=scales::comma(`200_JUMLAHLIABILITAS`/1000000,accuracy = 5L),
+  "Simpanan"=scales::comma(`220_Smpnn:`/1000000,accuracy = 5L),
+  "Tabungan Wadiah"=scales::comma(`223_TbngnWdh`/1000000,accuracy = 5L),
+  "DANA SYIRKAH TEMP"=scales::comma(`270_JmlhDnSyrkhTmprr`/1000000,accuracy = 5L),
+  "Mudharabah"=scales::comma(`250_Mdhrbh`/1000000,accuracy = 5L),
+  "Musyarakah"=scales::comma(`260_Msyrkh`/1000000,accuracy = 5L),
+  "EKUITAS"=scales::comma(`300_JmlhEkts`/1000000,accuracy = 5L),
+  "Modal"=scales::comma(`310_Mdl`/1000000,accuracy = 5L)) %>%
+  select(rowname, ASET:Modal)%>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% 
+  rename("Akun"=name) %>%
+  mutate(
+  Sparkline=c(
+  spk_chr(BS_data3$`100_JmlhAst`, type="bar"),
+  spk_chr(BS_data3$`Kas dan Setara Kas (Kas Lancar)`, type="bar"),
+  spk_chr(BS_data3$`Pinjaman Yang Diberikan (netto)`, type="bar"),
+  spk_chr(BS_data3$`200_JUMLAHLIABILITAS`, type="bar"),
+  spk_chr(BS_data3$`220_Smpnn:`, type="bar"),
+  spk_chr(BS_data3$`223_TbngnWdh`, type="bar"),
+  spk_chr(BS_data3$`270_JmlhDnSyrkhTmprr`, type="bar"),
+  spk_chr(BS_data3$`250_Mdhrbh`, type="bar"),
+  spk_chr(BS_data3$`260_Msyrkh`, type="bar"),
+  spk_chr(BS_data3$`300_JmlhEkts`, type="bar"),
+  spk_chr(BS_data3$`310_Mdl`, type="bar")
+  )) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+                     align=c("l", rep("r",10)),
+      # align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+})
+
+```
+
+### INCOME STATEMENT 
+
+```{r IS3a, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("IS3")
+
+output$IS3 <- renderUI({
+
+# sandilkm3 <- "332600011"
+sandilkm3    <-  namalkm %>% 
+                              filter(namalkm==input$namalkm3) %>% 
+                              select(Sandi_LKM) %>% 
+                              as.character()
+IS_data3 <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1) %>%
+    filter(Sandi_LKM==sandilkm3) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode3)) %>%
+    slice(1:9) %>% arrange(Periode1) %>%
+  select(
+  rowname,
+  `410_PndptnBng`,
+  `411_PndptnMrgnMrbhh`,
+  `412_PndptnSlm`,
+  `413_PndptnMrgnIstshn`,
+  `414_PndptnIjrh`,
+  `415_PdptnBgHslMdhrbh`,
+  `416_PdptnBgHslMsyrkh`,
+  `420_PndptnOprsnlLnny`,
+  `430_JmlhPndptnOprsnl`,
+  `440_HkPhkKtgAtsBgHsl`,
+  `450_PdOpSthDstrBgHsl`,
+  `510_BbnBng/BbnBnsWdh`,
+  `520_BbPyshPghpsnPjmn`,
+  `530_BbnPnystn(ATI)`,
+  `540_BbnTngKrj`,
+  `545_BbPyshPghpsnPbyn`,
+  `550_BbnOprsnlLnny`,
+  `560_JmlhBbnOprsnl`,
+  `570_SHUOp/LbRgOprsnl`,
+  `600_PndptnNnOprsnl`,
+  `700_BbnNnOprsnl`,
+  `750_SHU/LbRgSblmPjk`,
+  `800_TksrnPjkPnghsln`,
+  `900_SHU/LbRgThnBrjln`
+  ) %>%
+  mutate("Pendptan Operasional"=  `410_PndptnBng`+`411_PndptnMrgnMrbhh`+
+  `412_PndptnSlm`+  `413_PndptnMrgnIstshn`+  `414_PndptnIjrh`+
+  `415_PdptnBgHslMdhrbh`+  `416_PdptnBgHslMsyrkh`,
+  "Beban Operasional"=  `510_BbnBng/BbnBnsWdh`+  `520_BbPyshPghpsnPjmn`+
+  `530_BbnPnystn(ATI)`+  `540_BbnTngKrj`+  `545_BbPyshPghpsnPbyn`) %>%
+  rename(
+  "Pendapatan Bunga"=`410_PndptnBng`,
+  "Pendapatan Margin Murabahah"=`411_PndptnMrgnMrbhh`,
+  "Pendapatan Salam"=`412_PndptnSlm`,
+  "Pendapatan Margin Istishna"=`413_PndptnMrgnIstshn`,
+  "Pendapatan Ijarah"=`414_PndptnIjrh`,
+  "Pendapatan Bagi Hasil Mudharabah"=`415_PdptnBgHslMdhrbh`,
+  "Pendapatan Bagi Hasil Musyarakah"=`416_PdptnBgHslMsyrkh`,
+  "Pendptan Operasional Lain"=`420_PndptnOprsnlLnny`,
+  "Jml Pendptan Operasional"=`430_JmlhPndptnOprsnl`,
+  "HakPihakKetiga Bagi Hasil"=`440_HkPhkKtgAtsBgHsl`,
+  "Pendapatan Operasional Distribusi"=`450_PdOpSthDstrBgHsl`,
+  "Beban Bunga/Bonus Wadiah"=`510_BbnBng/BbnBnsWdh`,
+  "Beban Peny. Hpsn Pinjaman"=`520_BbPyshPghpsnPjmn`,
+  "Beban Penyusutan ATI"=`530_BbnPnystn(ATI)`,
+  "Beban Tenaga Kerja"=`540_BbnTngKrj`,
+  "Beban Peny. Hpsn Pembiayaan"=`545_BbPyshPghpsnPbyn`,
+  "Beban Operasional Lain"=`550_BbnOprsnlLnny`,
+  "Jumlah Beban Operasional"=`560_JmlhBbnOprsnl`,
+  "Laba/Rugi Operasional"=`570_SHUOp/LbRgOprsnl`,
+  "Pendapatan Non Operasional"=`600_PndptnNnOprsnl`,
+  "Beban Non Operasional"=`700_BbnNnOprsnl`,
+  "LabaRugiSHU Sbl Pajak"=`750_SHU/LbRgSblmPjk`,
+  "Taksiran Pajak Penghasilan"=`800_TksrnPjkPnghsln`,
+  "LabaRugiSHU Thn Berjalan"=`900_SHU/LbRgThnBrjln`
+  ) %>%
+  select(rowname,"Jml Pendptan Operasional",
+         "Pendptan Operasional",
+         "Pendptan Operasional Lain",
+         "HakPihakKetiga Bagi Hasil",
+         "Jumlah Beban Operasional",
+         "Beban Operasional",
+         "Beban Operasional Lain",
+         "Laba/Rugi Operasional",
+         "LabaRugiSHU Sbl Pajak",
+         "LabaRugiSHU Thn Berjalan") 
+
+is_table3 <- IS_data3%>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+    dplyr::mutate_if(.predicate = is.numeric, funs(./1000000)) %>%
+  mutate(across(where(is.numeric), round, 0)) %>%
+  dplyr::mutate_if(.predicate = is.numeric, scales::comma) %>%
+    mutate(
+  Sparkline=c(
+  spk_chr(IS_data3$`Jml Pendptan Operasional`, type="bar"),
+  spk_chr(IS_data3$`Pendptan Operasional`, type="bar"),
+  spk_chr(IS_data3$`Pendptan Operasional Lain`, type="bar"),
+  spk_chr(IS_data3$`HakPihakKetiga Bagi Hasil`, type="bar"),
+  spk_chr(IS_data3$`Jumlah Beban Operasional`, type="bar"),
+  spk_chr(IS_data3$`Beban Operasional`, type="bar"),
+  spk_chr(IS_data3$`Beban Operasional Lain`, type="bar"),
+  spk_chr(IS_data3$`Laba/Rugi Operasional`, type="bar"),
+  spk_chr(IS_data3$`LabaRugiSHU Sbl Pajak`, type="bar"),
+  spk_chr(IS_data3$`LabaRugiSHU Thn Berjalan`, type="bar")
+  )) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+                     align=c("l", rep("r",10)),
+      # align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+  
+})
+```
+
+### FINANCIAL SUMMARY 
+
+```{r fs3a, echo=FALSE, message=FALSE, warning=FALSE}
+
+# sukses kableextra sparkline------
+uiOutput("fs3")
+
+output$fs3 <- renderUI({
+sandilkm3    <-  namalkm %>% 
+                              filter(namalkm==input$namalkm3) %>% 
+                              select(Sandi_LKM) %>% 
+                              as.character()
+  
+  fs_data3 <-   finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+  "Net Loan"=(`Pinjaman Yang Diberikan (netto)`)/1000000,
+  "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/1000000,
+  "Total Assets"=(`100_JmlhAst`)/1000000,
+  "Net Income"=(`900_SHU/LbRgThnBrjln`)/1000000,
+  "Equity/Total Assets"=( `300_JmlhEkts`/`100_JmlhAst`),
+  "Tangible Equity Ratio"=(`140_AstTtpInvntrsATI`- `141_(AkmlsPnystnATI)`)/ `300_JmlhEkts`,
+  "Loans/Deposits"=`Pinjaman Yang Diberikan (netto)`/(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+  "Reserve Loans/Total Loans" =((`133_(PysnPghpsnPjmn)`+ `135_(MgnMrbhDtnghkn)`+ `138_(MgnIsthnDtnghk)`+ `171_(PyshnPghpsPbyn)`)*-1/ `Pinjaman Yang Diberikan bruto`) )%>%
+    filter(Sandi_LKM==sandilkm3) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode3)) %>%
+    slice(1:9) %>% arrange(Periode1)
+
+  fs_data3 <- fs_data3%>%
+   mutate(
+  "Net Loan"=scales::comma(`Net Loan`, accuracy = 5L),
+  "Net Deposit"=scales::comma(`Net Deposit`,accuracy = 5L),
+  "Total Assets"=scales::comma(`Total Assets`,accuracy = 5L),
+  "Net Income"=scales::comma(`Net Income`,accuracy = 5L),
+  "Equity/Total Assets"=scales::percent(`Equity/Total Assets`,accuracy = 0.1),
+  "Tangible Equity Ratio"=scales::percent(`Tangible Equity Ratio`,accuracy = 0.1),
+  "Loans/Deposits"=scales::percent(`Loans/Deposits`,accuracy = 0.1),
+  "Reserve Loans/Total Loans" =scales::percent(`Reserve Loans/Total Loans`, accuracy = 0.1)) %>%
+  select(rowname, "Net Loan":"Reserve Loans/Total Loans") %>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+    mutate(
+  Sparkline=c(
+  spk_chr(fs_data3$`Net Loan`, type="bar"),
+  spk_chr(fs_data3$`Net Deposit`, type="bar"),
+  spk_chr(fs_data3$`Total Assets`, type="bar"),
+  spk_chr(fs_data3$`Net Income`, type="bar"),
+  spk_chr(fs_data3$`Equity/Total Assets`, type="line"),
+  spk_chr(fs_data3$`Tangible Equity Ratio`, type="line"),
+  spk_chr(fs_data3$`Loans/Deposits`, type="line"),
+  spk_chr(fs_data3$`Reserve Loans/Total Loans`, type="line"))
+  ) %>%
+  select(Akun,Sparkline, everything()) %>%
+       knitr::kable("html",
+                     align=c("l", rep("r",10)),
+      # align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+     htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+
+
+fs_data3
+
+})
+
+
+```
+
+### BS RATIO 
+
+```{r bsratio3a, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("bsratio3")
+
+output$bsratio3 <- renderUI({
+sandilkm3    <-  namalkm %>% 
+                              filter(namalkm==input$namalkm3) %>% 
+                              select(Sandi_LKM) %>% 
+                              as.character()
+bsr_data3 <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+  "Cash&Equi/Total Assets"=`Kas dan Setara Kas (Kas Lancar)`/`100_JmlhAst` ,
+  "Loans/Total Assets"=`Pinjaman Yang Diberikan (netto)`/`100_JmlhAst`,
+  "Deposits/Total Assets"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`)/`100_JmlhAst`,
+  "Total Debt/Total Equity"=(`200_JUMLAHLIABILITAS`+`270_JmlhDnSyrkhTmprr`)/`300_JmlhEkts`) %>%
+    filter(Sandi_LKM==sandilkm3) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode3)) %>%
+    slice(1:9) %>% arrange(Periode1) %>%
+  select(rowname, "Cash&Equi/Total Assets":"Total Debt/Total Equity") 
+bsr_fiq3 <- bsr_data3 %>%
+  mutate(
+  "Cash&Equi/Total Assets"=scales::percent(`Cash&Equi/Total Assets`,accuracy = 0.1),
+  "Loans/Total Assets"=scales::percent(`Loans/Total Assets`,accuracy = 0.1),
+  "Deposits/Total Assets"=scales::percent(`Deposits/Total Assets`,accuracy = 0.1),
+  "Total Debt/Total Equity" =scales::percent(`Total Debt/Total Equity`, accuracy = 0.1)) %>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% 
+  rename("Akun"=name) %>%
+  mutate(
+  Sparkline=c(
+  spk_chr(bsr_data3$`Cash&Equi/Total Assets`, type="line"),
+  spk_chr(bsr_data3$`Loans/Total Assets`, type="line"),
+  spk_chr(bsr_data3$`Deposits/Total Assets`, type="line"),
+  spk_chr(bsr_data3$`Total Debt/Total Equity`, type="line"))) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+                     align=c("l", rep("r",10)),
+      # align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+bsr_fiq3
+})
+```
+
+### IS RATIO
+
+
+
+```{r isratio3a, echo=FALSE, message=FALSE, warning=FALSE}
+
+uiOutput("isratio3")
+
+output$isratio3 <- renderUI({
+sandilkm3    <-  namalkm %>% 
+                              filter(namalkm==input$namalkm3) %>% 
+                              select(Sandi_LKM) %>% 
+                              as.character()
+isr_data3 <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1,
+    "Net Interest Margin"=(`430_JmlhPndptnOprsnl`-`510_BbnBng/BbnBnsWdh`-`440_HkPhkKtgAtsBgHsl`)/`Pinjaman Yang Diberikan bruto`,
+    "Efficiency Ratio"= (`560_JmlhBbnOprsnl`-`510_BbnBng/BbnBnsWdh`)/`430_JmlhPndptnOprsnl`,
+    "Operating Margin"=`750_SHU/LbRgSblmPjk`/`430_JmlhPndptnOprsnl`,
+    # "Effective Tax Rate"=`800_TksrnPjkPnghsln`/`750_SHU/LbRgSblmPjk`,
+    "Profit Margin"=((`430_JmlhPndptnOprsnl`-`510_BbnBng/BbnBnsWdh`-`440_HkPhkKtgAtsBgHsl`)/`430_JmlhPndptnOprsnl`),
+    "Operating Income/Total Capital"=`430_JmlhPndptnOprsnl`/`300_JmlhEkts`,
+    "Return on Capital"= `900_SHU/LbRgThnBrjln`/`300_JmlhEkts`,
+    # "Return on Common Equity"=`900_SHU/LbRgThnBrjln`/`311_SpnPkk/MdlDstr`,
+    "Return on Assets"= `900_SHU/LbRgThnBrjln`/`100_JmlhAst` ) %>%
+    filter(Sandi_LKM==sandilkm3) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode3)) %>%
+    slice(1:9) %>% arrange(Periode1) %>% 
+  select(rowname, "Net Interest Margin":"Return on Assets") 
+
+
+
+isr_fig3 <- isr_data3%>%
+  mutate(
+  "Net Interest Margin"=scales::percent(`Net Interest Margin`,accuracy = 0.1),
+  "Efficiency Ratio"=scales::percent(`Efficiency Ratio`,accuracy = 0.1),
+  "Operating Margin"=scales::percent(`Operating Margin`,accuracy = 0.1),
+  # "Effective Tax Rate"=scales::percent(`Effective Tax Rate`,accuracy = 0.1),
+  "Profit Margin" =scales::percent(`Profit Margin`, accuracy = 0.1),
+  "Operating Income/Total Capital"=scales::percent(`Operating Income/Total Capital`,accuracy = 0.1),
+  "Return on Capital"=scales::percent(`Return on Capital`,accuracy = 0.1),
+  # "Return on Common Equity" =scales::percent(`Return on Common Equity`, accuracy = 0.1),
+  "Return on Assets"=scales::percent(`Return on Assets`,accuracy = 0.1) ) %>%
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+   mutate(
+  Sparkline=c(
+  spk_chr(isr_data3$`Net Interest Margin`, type="line"),
+  spk_chr(isr_data3$`Efficiency Ratio`, type="line"),
+  spk_chr(isr_data3$`Operating Margin`, type="line"),
+  spk_chr(isr_data3$`Profit Margin`, type="line"),
+  spk_chr(isr_data3$`Operating Income/Total Capital`, type="line"),
+  spk_chr(isr_data3$`Return on Capital`, type="line"),
+  spk_chr(isr_data3$`Return on Assets`, type="line")
+  )) %>% 
+    select(Akun, Sparkline, everything()) %>% 
+       knitr::kable("html",
+                     align=c("l", rep("r",10)),
+      # align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>% 
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+})
+```
+
+
+Balance Sheet {data-navmenu="FINANCIAL STATEMENT" data-icon="fa-id-badge" data-orientation=rows}  
+=====================================     
+   
+Sidebar {.sidebar}
+-------------------------------------
+
+<br>
+
+```{r sidebar4aa, echo=FALSE}
+
+selectizeInput(inputId = "namalkm4",
+                                               label = "PILIH LKM",
+                                               choices = namalkm$namalkm,
+                                               selected = "PANDEGLANG BERKAH",
+                                               multiple = FALSE # allow for multiple inputs
+                                               ,options = list(create = FALSE, maxOptions = 10000L)  # if TRUE, allows newly created inputs))
+                                )
+
+# selectInput("namalkm3", "NAMA LKM:",
+#       c(Choose='AGUNG REJEKI', namalkm$namalkm), selectize=TRUE)
+
+```
+
+```{r sidebar4ab, echo=FALSE}
+selectInput("periode4", "PERIODE:",
+                c("20161"="20161",
+                  "20162"="20162",
+                  "20163"="20163",
+                  "20171"="20171",
+                  "20172"="20172",
+                  "20173"="20173",
+                  "20181"="20181",
+                  "20182"="20182",
+                  "20183"="20183",
+                  "20191"="20191",
+                  "20192"="20192",
+                  "20193"="20193",
+                  "20201"="20201",
+                  "20202"="20202",
+                  "20203"="20203",
+                  "20211"="20211",
+                  "20212"="20212",
+                  "20213"="20213",
+                  "20221"="20221",
+                  "20222"="20222",
+                  "20223"="20223",
+                  "20231"="20231",
+                  "20232"="20232",
+                  "20233"="20233"
+                  ), selected = "20213")
+```
+
+```{r test4aaa, echo=FALSE}
+
+renderText({
+  sandilkm4    <-  namalkm %>% filter(namalkm==input$namalkm4) %>% select(Sandi_LKM) %>% as.character()
+    paste("You chose:"," - ", input$namalkm4," - ", input$periode4," - ", sandilkm4  ," - ", class(sandilkm4))
+    })
+
+```
+
+
+
+Row { .tabset}
+-------------------------------------
+
+### Amount 
+
+```{r BS4a, echo=FALSE, message=FALSE, warning=FALSE}
+uiOutput("BS4")
+
+output$BS4 <- renderUI({
+# sandilkm4 <- "332600011"
+# input <-  data.frame(periode4 = c("20213"))
+
+sandilkm4    <-  namalkm %>%
+                              filter(namalkm==input$namalkm4) %>%
+                              select(Sandi_LKM) %>%
+                              as.character()
+BS_data4 <- finaldata %>%  mutate(Periode1=as.numeric(Periode_Laporan)*1, sandi_lkm4a=as.numeric(Sandi_LKM)*1) %>%
+    select(
+  rowname,Periode_Laporan,Periode1,Sandi_LKM,sandi_lkm4a,
+  `110_Ks`:`300_JmlhEkts`
+  ) %>%
+   filter(Sandi_LKM %in% sandilkm4) %>%
+    arrange(desc( Periode1))%>%
+    filter(Periode1<=as.numeric(input$periode4)) %>%
+    slice(1:15) %>%
+  arrange(Periode1)
+# scales::comma(`100_JmlhAst`/1000000,accuracy = 5L)
+# glimpse(BS_data4)
+# BS_table4 <- BS_data4 %>% mutate_at(vars( `100_JmlhAst`:`300_JmlhEkts`),list(by_juta=~./1000000)) %>% 
+BS_table4 <- BS_data4 %>% mutate_at(vars( `110_Ks`:`300_JmlhEkts`),list(by_juta=~scales::comma(./1000000,accuracy = 5L))) %>%   
+      select( rowname,ends_with("by_juta")) %>% 
+  rename(
+"Kas"=`110_Ks_by_juta`,
+"Penempatan Dana"=`120_PnmptnDn_by_juta`,
+"Tabungan Pada Bank"=`121_TbngnPdBnk_by_juta`,
+"Deposito Berjangka Pada Bank "=`122_DpstBrjngkPdBnk_by_juta`,
+"Sertifikat Deposito Pada Bank"=`123_SrtfktDpstPdBnk_by_juta`,
+"Pinjaman Yang Diberikan"=`130_Ptg/PnjmnYgDbrkn_by_juta`,
+"Kepada Masyarakat"=`131_KpdMsyrkt_by_juta`,
+"Kepada LKM Lain"=`132_KpdLKMLn_by_juta`,
+"(Peny, Penghapusan Pinjaman)"=`133_(PysnPghpsnPjmn)_by_juta`,
+
+"Piutang Murabahah"=`134_PtngMrbhh_by_juta`,
+"(Margin Murabahah Ditangguhkan)"=`135_(MgnMrbhDtnghkn)_by_juta`,
+"Piutang Salam"=`136_PtngSlm_by_juta`,
+"Piutang Istishna’"=`137_PtngIstshn_by_juta`,
+"(Margin Istishna’ Ditangguhkan)"=`138_(MgnIsthnDtnghk)_by_juta`,
+"Pembiayaan:"=`160_Pmbyn:_by_juta`,
+"Pembiayaan Mudharabah"=`161_PmbynMdhrbh_by_juta`,
+"Pembiayaan Musyarakah"=`162_PmbynMsyrkh_by_juta`,
+"Piutang/Pembiayaan Lainnya "=`170_Ptng/PmbynLnny_by_juta`,
+"(Peny, Penghapusan Pembiayaan)"=`171_(PyshnPghpsPbyn)_by_juta`,
+"Aset Istishna’ Dalam Penyelesaian"=`180_AstIstshnPnylsn_by_juta`,
+"(Termin Istishna’)"=`181_(TrmnIstshn’)_by_juta`,
+"Persediaan"=`182_Prsdn_by_juta`,
+"Aset Ijarah"=`183_AstIjrh_by_juta`,
+"Aset Tetap Dan Inventaris (ATI)"=`140_AstTtpInvntrsATI_by_juta`,
+"(Akumulasi Penyusutan ATI)"=`141_(AkmlsPnystnATI)_by_juta`,
+"Aset Lain-lain"=`150_AstLn-Ln_by_juta`,
+"TOTAL ASSETS"=`100_JmlhAst_by_juta`,
+
+
+
+"Utang Yang Harus Segera Dibayar"=`210_UtngYgHrsSgrDbyr_by_juta`,
+"Simpanan:"=`220_Smpnn:_by_juta`,
+"Tabungan"=`221_Tbngn_by_juta`,
+"Deposito"=`222_Dpst_by_juta`,
+"Tabungan Wadiah"=`223_TbngnWdh_by_juta`,
+"Utang Salam"=`224_UtngSlm_by_juta`,
+"Utang Istishna’"=`225_UtngIstshn_by_juta`,
+"Pendanaan Yang Diterima"=`230_Pnjm/PndnnYgDtrm_by_juta`,
+"Liabilitas Lain-Lain"=`240_LbltsLn-Ln_by_juta`,
+"TOTAL LIABILITAS"=`200_JUMLAHLIABILITAS_by_juta`,
+
+"Mudharabah"=`250_Mdhrbh_by_juta`,
+"Kurang dari setahun"=`251_MdhrbhKrngdrsthn_by_juta`,
+"Paling sedikit setahun"=`252_MdbhPlngsdktsthn_by_juta`,
+"Musyarakah"=`260_Msyrkh_by_juta`,
+"Kurang dari_setahun"=`261_MsyrkhKrngdrsthn_by_juta`,
+"Paling sedikit_setahun"=`262_MykhPlngsdktsthn_by_juta`,
+"TOTAL DANA SYIRKAH TEMPORER"=`270_JmlhDnSyrkhTmprr_by_juta`,
+
+"Modal"=`310_Mdl_by_juta`,
+"Modal Disetor"=`311_SpnPkk/MdlDstr_by_juta`,
+"Tambahan Modal disetor"=`312_SpWj/TmbhnMddstr_by_juta`,
+"Hibah"=`320_Hbh_by_juta`,
+"Cadangan"=`330_Cdngn_by_juta`,
+"Cadangan Umum"=`331_CdngnUmm_by_juta`,
+"Cadangan Tujuan"=`332_CdngnTjn_by_juta`,
+"Saldo Laba/Rugi"=`340_SldLb/Rg_by_juta`,
+"Saldo Laba/(Rugi) awal Tahun"=`341_SldLb/(Rg)wlThn_by_juta`,
+"Laba/(Rugi)/SHU Tahun Berjalan"=`342_SHU/LbRgThnBrjln_by_juta`,
+"TOTAL EKUITAS"=`300_JmlhEkts_by_juta`
+
+
+  ) %>% 
+  tidyr::pivot_longer(-rowname) %>%
+  tidyr::pivot_wider(names_from=rowname, values_from=value) %>%
+  rename("Akun"=name) %>%
+  # mutate(
+  # Sparkline=c(
+  # spk_chr(BS_data3$`100_JmlhAst`, type="bar"),
+  # spk_chr(BS_data3$`Kas dan Setara Kas (Kas Lancar)`, type="bar"),
+  # spk_chr(BS_data3$`Pinjaman Yang Diberikan (netto)`, type="bar"),
+  # spk_chr(BS_data3$`200_JUMLAHLIABILITAS`, type="bar"),
+  # spk_chr(BS_data3$`220_Smpnn:`, type="bar"),
+  # spk_chr(BS_data3$`223_TbngnWdh`, type="bar"),
+  # spk_chr(BS_data3$`270_JmlhDnSyrkhTmprr`, type="bar"),
+  # spk_chr(BS_data3$`250_Mdhrbh`, type="bar"),
+  # spk_chr(BS_data3$`260_Msyrkh`, type="bar"),
+  # spk_chr(BS_data3$`300_JmlhEkts`, type="bar"),
+  # spk_chr(BS_data3$`310_Mdl`, type="bar")
+  # )) %>%
+    select(Akun, #Sparkline, 
+           everything()) %>%
+       knitr::kable("html",
+                     align=c("l", rep("r",15)),
+      # align = c("l","r","r","r","r","r","r","r","r","r"),
+      escape = F) %>%
+    kableExtra::kable_styling(
+      bootstrap_options = c("hover","striped"),
+      html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+      full_width = T) %>%
+       htmltools::HTML() %>%
+      div() %>%
+      # use new sparkline helper for adding dependency
+      spk_add_deps()
+
+# df1%>%mutate_at(vars(x1:x3),list(All_by_x3=~./x3))
+
+# %>%
+  #    mutate(
+  # "ASET"=scales::comma(`100_JmlhAst`/1000000,accuracy = 5L),
+  # "Kas dan Setara Kas"=scales::comma(`Kas dan Setara Kas (Kas Lancar)`/1000000,accuracy = 5L),
+  # "Pinjaman/Pembiayaan"=scales::comma(`Pinjaman Yang Diberikan (netto)`/1000000,accuracy = 5L),
+  # "LIABILITAS"=scales::comma(`200_JUMLAHLIABILITAS`/1000000,accuracy = 5L),
+  # "Simpanan"=scales::comma(`220_Smpnn:`/1000000,accuracy = 5L),
+  # "Tabungan Wadiah"=scales::comma(`223_TbngnWdh`/1000000,accuracy = 5L),
+  # "DANA SYIRKAH TEMP"=scales::comma(`270_JmlhDnSyrkhTmprr`/1000000,accuracy = 5L),
+  # "Mudharabah"=scales::comma(`250_Mdhrbh`/1000000,accuracy = 5L),
+  # "Musyarakah"=scales::comma(`260_Msyrkh`/1000000,accuracy = 5L),
+  # "EKUITAS"=scales::comma(`300_JmlhEkts`/1000000,accuracy = 5L),
+  # "Modal"=scales::comma(`310_Mdl`/1000000,accuracy = 5L)) %>%
+  # select(rowname, ASET:Modal)%>%
+  # tidyr::pivot_longer(-rowname) %>%
+  # tidyr::pivot_wider(names_from=rowname, values_from=value) %>%
+  # rename("Akun"=name) %>%
+  # mutate(
+  # Sparkline=c(
+  # spk_chr(BS_data3$`100_JmlhAst`, type="bar"),
+  # spk_chr(BS_data3$`Kas dan Setara Kas (Kas Lancar)`, type="bar"),
+  # spk_chr(BS_data3$`Pinjaman Yang Diberikan (netto)`, type="bar"),
+  # spk_chr(BS_data3$`200_JUMLAHLIABILITAS`, type="bar"),
+  # spk_chr(BS_data3$`220_Smpnn:`, type="bar"),
+  # spk_chr(BS_data3$`223_TbngnWdh`, type="bar"),
+  # spk_chr(BS_data3$`270_JmlhDnSyrkhTmprr`, type="bar"),
+  # spk_chr(BS_data3$`250_Mdhrbh`, type="bar"),
+  # spk_chr(BS_data3$`260_Msyrkh`, type="bar"),
+  # spk_chr(BS_data3$`300_JmlhEkts`, type="bar"),
+  # spk_chr(BS_data3$`310_Mdl`, type="bar")
+  # )) %>%
+  #   select(Akun, Sparkline, everything()) %>%
+  #      knitr::kable("html",
+  #                    align=c("l", rep("r",10)),
+  #     # align = c("l","r","r","r","r","r","r","r","r","r"),
+  #     escape = F) %>%
+  #   kableExtra::kable_styling(
+  #     bootstrap_options = c("hover","striped"),
+  #     html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+  #     full_width = T) %>%
+  #      htmltools::HTML() %>%
+  #     div() %>%
+  #     # use new sparkline helper for adding dependency
+  #     spk_add_deps()
+})
+
+```
+
+Income Statement {data-navmenu="FINANCIAL STATEMENT" data-icon="fa-id-badge" data-orientation=rows}  
+=====================================     
+   
+Sidebar {.sidebar}
+-------------------------------------
+
+<br>
+
+```{r sidebar4aba, echo=FALSE}
+
+selectizeInput(inputId = "namalkm4b",
+                                               label = "PILIH LKM",
+                                               choices = namalkm$namalkm,
+                                               selected = "PANDEGLANG BERKAH",
+                                               multiple = FALSE # allow for multiple inputs
+                                               ,options = list(create = FALSE, maxOptions = 10000L)  # if TRUE, allows newly created inputs))
+                                )
+
+# selectInput("namalkm3", "NAMA LKM:",
+#       c(Choose='AGUNG REJEKI', namalkm$namalkm), selectize=TRUE)
+
+```
+
+```{r sidebar4abaa, echo=FALSE}
+selectInput("periode4b", "PERIODE:",
+                c("20161"="20161",
+                  "20162"="20162",
+                  "20163"="20163",
+                  "20171"="20171",
+                  "20172"="20172",
+                  "20173"="20173",
+                  "20181"="20181",
+                  "20182"="20182",
+                  "20183"="20183",
+                  "20191"="20191",
+                  "20192"="20192",
+                  "20193"="20193",
+                  "20201"="20201",
+                  "20202"="20202",
+                  "20203"="20203",
+                  "20211"="20211",
+                  "20212"="20212",
+                  "20213"="20213",
+                  "20221"="20221",
+                  "20222"="20222",
+                  "20223"="20223",
+                  "20231"="20231",
+                  "20232"="20232",
+                  "20233"="20233"
+                  ), selected = "20213")
+```
+
+```{r test4aaaaaa, echo=FALSE}
+
+renderText({
+  sandilkm4b    <-  namalkm %>% filter(namalkm==input$namalkm4b) %>% select(Sandi_LKM) %>% as.character()
+    paste("You chose:"," - ", input$namalkm4b," - ", input$periode4b," - ", sandilkm4b  ," - ", class(sandilkm4b))
+    })
+
+```
+
+
+
+Row { .tabset}
+-------------------------------------
+
+
+
+### INCOME STATEMENT (Jt Rp)
+
+```{r IS4ab, echo=FALSE, message=FALSE, warning=FALSE}
+
+# uiOutput("IS3")
+# 
+# output$IS3 <- renderUI({
+# 
+# # sandilkm3 <- "332600011"
+# sandilkm3    <-  namalkm %>% 
+#                               filter(namalkm==input$namalkm3) %>% 
+#                               select(Sandi_LKM) %>% 
+#                               as.character()
+# IS_data3 <- finaldata %>% mutate(Periode1=as.numeric(Periode_Laporan)*1) %>%
+#     filter(Sandi_LKM==sandilkm3) %>%
+#     arrange(desc( Periode1))%>%
+#     filter(Periode1<=as.numeric(input$periode3)) %>%
+#     slice(1:9) %>% arrange(Periode1) %>%
+#   select(
+#   rowname,
+#   `410_PndptnBng`,
+#   `411_PndptnMrgnMrbhh`,
+#   `412_PndptnSlm`,
+#   `413_PndptnMrgnIstshn`,
+#   `414_PndptnIjrh`,
+#   `415_PdptnBgHslMdhrbh`,
+#   `416_PdptnBgHslMsyrkh`,
+#   `420_PndptnOprsnlLnny`,
+#   `430_JmlhPndptnOprsnl`,
+#   `440_HkPhkKtgAtsBgHsl`,
+#   `450_PdOpSthDstrBgHsl`,
+#   `510_BbnBng/BbnBnsWdh`,
+#   `520_BbPyshPghpsnPjmn`,
+#   `530_BbnPnystn(ATI)`,
+#   `540_BbnTngKrj`,
+#   `545_BbPyshPghpsnPbyn`,
+#   `550_BbnOprsnlLnny`,
+#   `560_JmlhBbnOprsnl`,
+#   `570_SHUOp/LbRgOprsnl`,
+#   `600_PndptnNnOprsnl`,
+#   `700_BbnNnOprsnl`,
+#   `750_SHU/LbRgSblmPjk`,
+#   `800_TksrnPjkPnghsln`,
+#   `900_SHU/LbRgThnBrjln`
+#   ) %>%
+#   mutate("Pendptan Operasional"=  `410_PndptnBng`+`411_PndptnMrgnMrbhh`+
+#   `412_PndptnSlm`+  `413_PndptnMrgnIstshn`+  `414_PndptnIjrh`+
+#   `415_PdptnBgHslMdhrbh`+  `416_PdptnBgHslMsyrkh`,
+#   "Beban Operasional"=  `510_BbnBng/BbnBnsWdh`+  `520_BbPyshPghpsnPjmn`+
+#   `530_BbnPnystn(ATI)`+  `540_BbnTngKrj`+  `545_BbPyshPghpsnPbyn`) %>%
+#   rename(
+#   "Pendapatan Bunga"=`410_PndptnBng`,
+#   "Pendapatan Margin Murabahah"=`411_PndptnMrgnMrbhh`,
+#   "Pendapatan Salam"=`412_PndptnSlm`,
+#   "Pendapatan Margin Istishna"=`413_PndptnMrgnIstshn`,
+#   "Pendapatan Ijarah"=`414_PndptnIjrh`,
+#   "Pendapatan Bagi Hasil Mudharabah"=`415_PdptnBgHslMdhrbh`,
+#   "Pendapatan Bagi Hasil Musyarakah"=`416_PdptnBgHslMsyrkh`,
+#   "Pendptan Operasional Lain"=`420_PndptnOprsnlLnny`,
+#   "Jml Pendptan Operasional"=`430_JmlhPndptnOprsnl`,
+#   "HakPihakKetiga Bagi Hasil"=`440_HkPhkKtgAtsBgHsl`,
+#   "Pendapatan Operasional Distribusi"=`450_PdOpSthDstrBgHsl`,
+#   "Beban Bunga/Bonus Wadiah"=`510_BbnBng/BbnBnsWdh`,
+#   "Beban Peny. Hpsn Pinjaman"=`520_BbPyshPghpsnPjmn`,
+#   "Beban Penyusutan ATI"=`530_BbnPnystn(ATI)`,
+#   "Beban Tenaga Kerja"=`540_BbnTngKrj`,
+#   "Beban Peny. Hpsn Pembiayaan"=`545_BbPyshPghpsnPbyn`,
+#   "Beban Operasional Lain"=`550_BbnOprsnlLnny`,
+#   "Jumlah Beban Operasional"=`560_JmlhBbnOprsnl`,
+#   "Laba/Rugi Operasional"=`570_SHUOp/LbRgOprsnl`,
+#   "Pendapatan Non Operasional"=`600_PndptnNnOprsnl`,
+#   "Beban Non Operasional"=`700_BbnNnOprsnl`,
+#   "LabaRugiSHU Sbl Pajak"=`750_SHU/LbRgSblmPjk`,
+#   "Taksiran Pajak Penghasilan"=`800_TksrnPjkPnghsln`,
+#   "LabaRugiSHU Thn Berjalan"=`900_SHU/LbRgThnBrjln`
+#   ) %>%
+#   select(rowname,"Jml Pendptan Operasional",
+#          "Pendptan Operasional",
+#          "Pendptan Operasional Lain",
+#          "HakPihakKetiga Bagi Hasil",
+#          "Jumlah Beban Operasional",
+#          "Beban Operasional",
+#          "Beban Operasional Lain",
+#          "Laba/Rugi Operasional",
+#          "LabaRugiSHU Sbl Pajak",
+#          "LabaRugiSHU Thn Berjalan") 
+# 
+# is_table3 <- IS_data3%>%
+#   tidyr::pivot_longer(-rowname) %>%
+#   tidyr::pivot_wider(names_from=rowname, values_from=value) %>% rename("Akun"=name) %>%
+#     dplyr::mutate_if(.predicate = is.numeric, funs(./1000000)) %>%
+#   mutate(across(where(is.numeric), round, 0)) %>%
+#   dplyr::mutate_if(.predicate = is.numeric, scales::comma) %>%
+#     mutate(
+#   Sparkline=c(
+#   spk_chr(IS_data3$`Jml Pendptan Operasional`, type="bar"),
+#   spk_chr(IS_data3$`Pendptan Operasional`, type="bar"),
+#   spk_chr(IS_data3$`Pendptan Operasional Lain`, type="bar"),
+#   spk_chr(IS_data3$`HakPihakKetiga Bagi Hasil`, type="bar"),
+#   spk_chr(IS_data3$`Jumlah Beban Operasional`, type="bar"),
+#   spk_chr(IS_data3$`Beban Operasional`, type="bar"),
+#   spk_chr(IS_data3$`Beban Operasional Lain`, type="bar"),
+#   spk_chr(IS_data3$`Laba/Rugi Operasional`, type="bar"),
+#   spk_chr(IS_data3$`LabaRugiSHU Sbl Pajak`, type="bar"),
+#   spk_chr(IS_data3$`LabaRugiSHU Thn Berjalan`, type="bar")
+#   )) %>% 
+#     select(Akun, Sparkline, everything()) %>% 
+#        knitr::kable("html",
+#       align = c("l","r","r","r","r","r","r","r","r","r"),
+#       escape = F) %>%
+#     kableExtra::kable_styling(
+#       bootstrap_options = c("hover","striped"),
+#       html_font = '"Arial Narrow", arial, helvetica, sans-serif',
+#       full_width = T) %>% 
+#        htmltools::HTML() %>%
+#       div() %>%
+#       # use new sparkline helper for adding dependency
+#       spk_add_deps()
+#   
+# })
+```
+
+### Percent
+
+Grafik {.storyboard data-navmenu="ANALYSIS" data-icon="fa-bar-chart" data-orientation=rows}
+=========================================
+
+### ASET 
+
+
+```{r aset_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+fig <- plot_ly(bs_fig,  type = 'bar') %>% 
+  add_trace(x = ~period, y = ~`100_JmlhAst`, name="Total Aset", 
+            marker=list(color="#70AD47")) %>% 
+  add_trace(x = ~period,y = ~growth_asset, name="Pertumbuhan", yaxis = "y2", type="scatter", mode='lines', 
+            line=list(color="blue")) %>%
+  layout(
+  # title = "TOTAL ASET", 
+  xaxis = list(title="Periode Laporan"),
+               # autotick = F,
+               # tickmode="array",
+               # tickval=bs_fig$period,
+               # ticktext=bs_fig$period,
+               # type="category"),
+               # type='date',
+               # tickformat="%b<br>%y"),
+  yaxis = list(title="<b>Aset</b> (Rp Miliar)"),
+  yaxis2 = list(
+    overlaying="y", 
+    side="right", 
+    automargin=T,
+    # tickformat="%",
+    title="<b>Pertumbuhan</b> (yoy,%)"),
+  # showlegend=T
+  
+   legend=list(
+     orientation="h",
+     xanchor="center",
+     x=0.5, y=100)
+ ) 
+   
+fig
+
+```
+
+### PINJAMAN
+
+
+
+```{r piutang_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+fig1 <- plot_ly(bs_fig,  type = 'bar') %>% 
+  add_trace(x = ~period, y = ~`Pinjaman Yang Diberikan (netto)`, name="Pinjaman Yang Diberikan") %>% 
+  add_trace(x = ~period,y = ~growth_pinjaman, name="Pertumbuhan", yaxis = "y2", type="scatter", mode='lines') %>%
+  layout(
+  xaxis = list(title="Periode Laporan"),
+  yaxis = list(title="<b>Pinjaman</b> (Rp Miliar)"),
+  yaxis2 = list(
+    overlaying="y", 
+    side="right", 
+    automargin=T,
+    title="<b>Pertumbuhan</b> (yoy,%)"),
+  legend=list(
+    orientation="h",
+    xanchor="center",
+    x=0.5, y=100)
+ ) 
+   
+fig1
+
+```
+
+Column 
+-------------------------------------
+
+
+
+
+### SIMPANAN
+
+
+```{r simpanan_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+fig2 <- plot_ly(bs_fig,  type = 'bar') %>% 
+  add_trace(x = ~period, 
+            y = ~DPK,
+            name="Simpanan", 
+            marker=list(color="grey")) %>% 
+  add_trace(x = ~period,
+            y = ~growth_dpk, 
+            name="Pertumbuhan",
+            yaxis = "y2", 
+            type="scatter",
+            mode='lines', 
+            line=list(color="red")) %>%
+  layout(
+  xaxis = list(title="Periode Laporan"),
+  yaxis = list(title="<b>Simpanan</b> (Rp Miliar)"),
+  yaxis2 = list(
+    overlaying="y", 
+    side="right", 
+    automargin=T,
+    title="<b>Pertumbuhan</b> (yoy,%)"),
+  legend=list(
+    orientation="h",
+    xanchor="center",
+    x=0.5, y=100)
+ ) 
+fig2
+
+```
+
+
+
+### EKUITAS 
+
+
+
+```{r eku_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# colnames(bs_fig)
+fig3a <- plot_ly(bs_fig,  type = 'bar') %>% 
+  add_trace(x = ~period, 
+            y = ~`300_JmlhEkts`,
+            name="Ekuitas", 
+            marker=list(color="#FF9933")) %>% 
+  add_trace(x = ~period,
+            y = ~growth_ekuitas, 
+            name="Pertumbuhan",
+            yaxis = "y2", 
+            type="scatter",
+            mode='lines', 
+            line=list(color="blue")) %>%
+  layout(
+  xaxis = list(title="Periode Laporan"),
+  yaxis = list(title="<b>Ekuitas</b> (Rp Miliar)"),
+  yaxis2 = list(
+    overlaying="y", 
+    side="right", 
+    automargin=T,
+    title="<b>Pertumbuhan</b> (yoy,%)"),
+  legend=list(
+    orientation="h",
+    xanchor="center",
+    x=0.5, y=100)
+ ) 
+   
+fig3a
+
+
+```
+
+Column 
+-------------------------------------
+
+### MODAL 
+
+
+
+```{r modal_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+fig3 <- plot_ly(bs_fig,  type = 'bar') %>% 
+  add_trace(x = ~period, 
+            y = ~`310_Mdl`,
+            name="Modal", 
+            marker=list(color="#FF9933")) %>% 
+  add_trace(x = ~period,
+            y = ~growth_modal, 
+            name="Pertumbuhan",
+            yaxis = "y2", 
+            type="scatter",
+            mode='lines', 
+            line=list(color="blue")) %>%
+  layout(
+  xaxis = list(title="Periode Laporan"),
+  yaxis = list(title="<b>Modal</b> (Rp Miliar)"),
+  yaxis2 = list(
+    overlaying="y", 
+    side="right", 
+    automargin=T,
+    title="<b>Pertumbuhan</b> (yoy,%)"),
+  legend=list(
+    orientation="h",
+    xanchor="center",
+    x=0.5, y=100)
+ ) 
+   
+fig3
+
+
+```
+
+### SALDO LABARUGI 
+
+
+```{r slr_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+fig4 <- plot_ly(bs_fig,  type = 'bar') %>% 
+  add_trace(x = ~period, 
+            y = ~`340_SldLb/Rg`,
+            name="Saldo LabaRugi", 
+            marker=list(color="#FF9933")) %>% 
+  add_trace(x = ~period,
+            y = ~growth_saldolr, 
+            name="Pertumbuhan",
+            yaxis = "y2", 
+            type="scatter",
+            mode='lines', 
+            line=list(color="blue")) %>%
+  layout(
+  xaxis = list(title="Periode Laporan"),
+  yaxis = list(title="<b>Saldo LabaRugi</b> (Rp Miliar)"),
+  yaxis2 = list(
+    overlaying="y", 
+    side="right", 
+    automargin=T,
+    title="<b>Pertumbuhan</b> (yoy,%)"),
+  legend=list(
+    orientation="h",
+    xanchor="center",
+    x=0.5, y=100)
+ ) 
+   
+fig4
+
+
+```
+
+ANALYSIS 1 {data-navmenu="ADVANCED ANALYSIS" data-icon="fa-bar-chart" data-orientation=columns}
+===================================== 
+
+Column 
+-------------------------------------
+
+### ASSET GROUP 
+
+
+```{r aset0_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+fig0 <- finaldata %>%  
+  filter(Periode_Laporan=="20212",!grepl('Agregat', Nama_Original)) %>% 
+  group_by(asetgrup,jenislembaga) %>%
+  summarize(freq=n()) %>%ungroup() %>% 
+  mutate(freqT=sum(freq),pct=paste0(round(100*freq/freqT,0),'%')) 
+figure0 <- ggplot(fig0, aes(x=freq, y=asetgrup,fill=jenislembaga))+
+  geom_bar(stat="identity")+
+
+  scale_y_discrete(label=c("<Rp1M","Rp1M-<Rp5M","Rp5M-<Rp10M","Rp10M-<Rp25M","Rp25M-<Rp50M",">=Rp50M"))
+ggplotly(figure0)  
+```
+
+### EQUITY GROUP 
+
+
+```{r aset00_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+fig00 <- finaldata %>%  
+  filter(Periode_Laporan=="20212",!grepl('Agregat', Nama_Original)) %>% 
+  group_by(equitygrup,jenislembaga) %>%
+  summarize(freq=n()) %>%ungroup() %>% 
+  mutate(freqT=sum(freq),pct=paste0(round(100*freq/freqT,0),'%')) 
+figure00 <- ggplot(fig00, aes(x=freq, y=equitygrup,fill=jenislembaga))+
+  geom_bar(stat="identity")+
+
+  scale_y_discrete(label=c("<Rp300Jt","Rp300Jt-<Rp500Jt","Rp500Jt-<Rp1M","Rp1M-<Rp5M","Rp5M-<Rp10M",">=Rp10M"))
+ggplotly(figure00)  
+```
+
+Column 
+-------------------------------------
+
+
+
+### Ggbeeswarm 1
+
+
+
+```{r Ggbeeswarm_fig, out.width="100%", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+bee00 <- ggplot(vial,aes(jenislembaga, `100_JmlhAst`,color=factor(deposittaking))) + 
+  geom_quasirandom()+
+  # geom_quasirandom(cex = 2.5, method="pseudorandom" )+ #corral = "wrap", corral.width = 0.9
+  # geom_beeswarm(side=0.4, cex = 0.5,priority='density', method="pseudorandom")+ #corral = "gutter", corral.width = 0.1
+  scale_y_log10()+
+  theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1),legend.position = "top")
+
+ggplotly(bee00)
+```
+
+### Ggbeeswarm 2
+
+
+
+```{r Ggbeeswarm2_fig, out.width="100%", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+bee1 <- ggplot(bee,aes(equitygrup, asetgrup,color=factor(jenislembaga), text=Nama_Original)) + 
+  geom_quasirandom(cex=2,priority='descending')+
+  # geom_quasirandom(cex = 2.5, method="random" )+ #corral = "wrap", corral.width = 0.9
+  # geom_beeswarm(side=0.4, cex = 0.5,priority='density', method="pseudorandom")+ #corral = "gutter", corral.width = 0.1
+  # scale_y_log10()+
+   # scale_x_discrete (expand=expansion(add=c(0.5,.5)))+
+  scale_x_discrete(expand=expansion(add=c(0.5,.5)),label=c("<Rp300Jt","Rp300Jt-<Rp500Jt","Rp500Jt-<Rp1M","Rp1M-<Rp5M","Rp5M-<Rp10M",">=Rp10M"))+
+   # scale_y_discrete (expand=expansion(add=c(0.5,.5)))+
+    scale_y_discrete(label=c("<Rp1M","Rp1M-<Rp5M","Rp5M-<Rp10M","Rp10M-<Rp25M","Rp25M-<Rp50M",">=Rp50M"))+
+  theme(legend.position = "right",axis.text.x = element_text(angle = 45))
+
+
+ggplotly(bee1)
+```
+
+ANALYSIS 2 {data-navmenu="ADVANCED ANALYSIS" data-orientation=columns data-icon="fa-line-chart"}
+===================================== 
+
+Column {.tabset .tabset-fade}
+-------------------------------------
+
+### Treemap 1
+
+
+```{r treehc1, out.width="50%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# jenis lkm = deposit not deposit=nama lkm
+# 
+# label=namalkm (pkp)
+# parent=depository/nondepository (bwm-nondepository)
+# ids=nondepository-pkp
+# 
+# parent=kakek-bapak
+# ids=bapak-anak
+# labels=anak
+
+
+
+tm<- treemap(treemap_lkm, index = c("jenislembaga", "Nama_Original"),
+              vSize = "Aset", 
+              type = "value", palette = color_dsin) 
+
+
+```
+
+### Treemap 2
+
+```{r treehc, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+  treemap_lkm %>% hchart(
+    "treemap",
+    hcaes(x = Nama_Original, value = `Aset`, color = jenislembaga)
+  ) %>%
+    hc_plotOptions(treemap = list(colorByPoint = TRUE)) %>%
+    # hc_colors(c("#3cba54", "#f4c20d", "#db3236", "#4885ed")) %>%
+    hc_colorAxis(dataClasses = color_classes(color_dsin)) %>%
+    hc_legend(enabled = FALSE)
+ 
+  
+```
+
+
+
+Column {.tabset .tabset-fade}
+-------------------------------------
+
+
+
+### Ggridges 1
+
+```{r ggridge_fig, out.width="100%",message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+rid_fig <- ggplot(rid, aes(x=`100_JmlhAst`,y=Periode_Laporan,fill=Periode_Laporan))+
+  geom_density_ridges_gradient(scale=5) + theme_ridges()+
+  # scale_y_discrete(expand = c(0, 0)) +
+  # scale_x_continuous(expand = c(0.01, 0))+
+  labs(x="Sebaran Aset",y="Periode Laporan")+
+  ggtitle("Perkembangan Aset LKM")+
+  theme(legend.position = "none")+
+  scale_x_continuous(trans="log10")
+suppressMessages(print(rid_fig))
+```
+
+### Ggridges 2
+
+```{r ggridge2_fig, out.width="100%",  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+rid_fig2 <- ggplot(rid2, aes(x=`100_JmlhAst`,y=jenislembaga,fill=jenislembaga))+
+  geom_density_ridges_gradient(scale=5) + 
+  # theme_ridges()+ geom_density_ridges(bandwidth = 1)+
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_x_continuous(expand = c(0.01, 0),trans="log10")+
+  labs(x="Sebaran Aset",y="Asal Lembaga")+
+  ggtitle("Sebaran Aset LKM per Asal LKM")+
+  theme(legend.position = "none")
+
+suppressMessages(print(rid_fig2))
+
+```
+
+
+ANALYSIS 3 {data-navmenu="ADVANCED ANALYSIS" data-orientation=columns data-icon="fa-signal"}
+===================================== 
+
+Column  {.tabset .tabset-fade}
+-------------------------------------
+
+### Ggalluvial 
+
+
+
+```{r ggalluvial_fig, out.width="100%",  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+ggplot(data = vial1,
+       aes(axis1 = Cakupan_Wilayah.y, axis2 = asetgrup, axis3 = jenislembaga,
+           y = freq, label=freq)) +
+  scale_x_discrete(limits = c("Cakupan Wilayah", "asetgrup", "jenislembaga"), expand = c(.2, .05)) +
+  xlab("Karakteristik") +
+  geom_alluvium(aes(fill = deposittaking)) +
+  geom_stratum() +
+  scale_linetype_manual(values = c("blank", "solid")) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  #   ggrepel::geom_text_repel( aes(label = jenislembaga),
+  #   stat = "stratum", size = 4, direction = "y", nudge_x = .5
+  # )+
+  #    ggrepel::geom_text_repel( aes(label = Cakupan_Wilayah.y),
+  #   stat = "stratum", size = 4, direction = "y", nudge_x = -.5
+  # )+
+  ggfittext::geom_fit_text(stat = "stratum", width = 1/4, min.size = 2) +
+  theme(legend.position = "top") +
+  ggtitle("Pembagian karakteristik LKM",
+          "dibagi per cakupan wilayah, besaran aset, asal lembaga")
+
+```
+urutkan text dan jangan overlap
+
+
+
+### Gganimate
+
+
+
+```{r gganimate_fig, out.width="100%", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+anim <- ggplot(rid, aes(`Pinjaman Yang Diberikan (netto)`, DPK, size = `100_JmlhAst`, colour = jenislembaga)) +
+  geom_point(alpha = 0.7, show.legend = FALSE) +
+  scale_colour_manual(values = manualcolors) +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap(~asetgrup) +
+  # Here comes the gganimate specific bits
+  labs(title = 'Year: {frame_time}', x = 'Net Loan', y = 'Net Deposit') +
+  # transition_null()+
+  transition_time(Tanggal) +
+    # transition_time(Month) +
+  enter_fade() +
+  exit_fade()+
+  ease_aes('linear')
+animate(anim)
+```
+
+KEPATUHAN {data-navmenu="ADVANCED ANALYSIS" data-orientation=columns data-icon="fa-signal"}
+===================================== 
+
+Column 
+-------------------------------------
+
+```{r heatmap_fig, out.height = "700px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+heat <- absensi %>%
+  mutate(Sandi_LKM=as.character(`Sandi LKM`), Periode=as.character(Periode)) %>%  
+  left_join(finaldata, by=c("Sandi_LKM"="Sandi_LKM", "Periode"="Periode_Laporan") ) %>%   
+  filter(Status_Keaktifan=="Aktif") %>% 
+  select(Sandi_LKM, Nama_Original,`KR/KOJK.y`,`100_JmlhAst`, Periode, Substitusi.x) %>% 
+  arrange(Periode) %>% 
+  as.data.frame()
+
+heat0 <- heat %>%  tidyr::pivot_wider(names_from = Periode, values_from =c(Substitusi.x,`100_JmlhAst`) ) %>% 
+  select(`Sandi_LKM`:`Substitusi.x_20212`,`100_JmlhAst_20212`) %>% arrange(desc (`100_JmlhAst_20212`))
+heat1 = heat0[1:40,]
+heat2 = heat0[41:80,]
+heat3 = heat0[81:120,]
+heat4 = heat0[121:160,]
+heat5 = heat0[161:200,]
+heat6 = heat0[201:223,]
+heat10 <- heat %>% filter(Sandi_LKM %in% heat1$Sandi_LKM)
+heat20 <- heat %>% filter(Sandi_LKM %in% heat2$Sandi_LKM)
+heat30 <- heat %>% filter(Sandi_LKM %in% heat3$Sandi_LKM)
+heat40 <- heat %>% filter(Sandi_LKM %in% heat4$Sandi_LKM)
+heat50 <- heat %>% filter(Sandi_LKM %in% heat5$Sandi_LKM)
+heat60 <- heat %>% filter(Sandi_LKM %in% heat6$Sandi_LKM)
+# heat3 <- heat %>%
+#   filter(Status_Keaktifan=="Aktif", asetgrup %in% c(2)) %>% mutate(Periode=as.numeric(Periode)) %>% 
+#   select(Sandi_LKM,`Nama LKM`, Nama_Original, Periode, Substitusi.x) %>% arrange(Periode) 
+# colnames(heat)
+# ab <- heat %>%filter(Status_Keaktifan=="Aktif") %>% select(Sandi_LKM, Nama_Original, `KR/KOJK.y`, Periode, Substitusi.x) %>%arrange(Periode) %>%   tidyr::pivot_wider(names_from = Periode, values_from = Substitusi.x)
+# ab1 <- ab %>% group_by(`KR/KOJK.y`) %>% tally()
+# 
+# heat4 <- heat %>%
+#   filter() %>% mutate(Periode=as.numeric(Periode)) %>% 
+#   select(Sandi_LKM,`Nama LKM`, Nama_Original, Periode, Substitusi.x) %>% arrange(Periode) 
+# 
+# 
+# # aa <- heat3 %>% group_by(`Sandi_LKM`, Periode) %>% tally()
+# # glimpse(heat3)
+# heat_data1 <- heat1 %>%  tidyr::pivot_wider(names_from = Periode, values_from = Substitusi.x)
+# heat_data2 <- heat2 %>%  tidyr::pivot_wider(names_from = Periode, values_from = Substitusi.x)
+# heat_data3 <- heat3 %>%  tidyr::pivot_wider(names_from = Periode, values_from = Substitusi.x)
+heat_fig1 <- ggplot(heat10, aes(Periode, Nama_Original, fill=Substitusi.x))+
+  geom_tile()+
+  theme(legend.position = "none",axis.text.x = element_text(angle = 45))+
+ scale_fill_viridis(discrete=TRUE)
+heat_fig2 <- ggplot(heat20, aes(Periode, Nama_Original, fill=Substitusi.x))+
+  geom_tile()+
+    theme(legend.position = "none",axis.text.x = element_text(angle = 45))+
+# scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+ scale_fill_viridis(discrete=TRUE)
+heat_fig3 <- ggplot(heat30, aes(Periode, Nama_Original, fill=Substitusi.x))+
+  geom_tile()+
+    theme(legend.position = "none",axis.text.x = element_text(angle = 45))+
+ scale_fill_viridis(discrete=TRUE)
+heat_fig4 <- ggplot(heat40, aes(Periode, Nama_Original, fill=Substitusi.x))+
+  geom_tile()+
+  theme(legend.position = "none",axis.text.x = element_text(angle = 45))+
+ scale_fill_viridis(discrete=TRUE)
+heat_fig5 <- ggplot(heat50, aes(Periode, Nama_Original, fill=Substitusi.x))+
+  geom_tile()+
+    theme(legend.position = "none",axis.text.x = element_text(angle = 45))+
+# scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+ scale_fill_viridis(discrete=TRUE)
+heat_fig6 <- ggplot(heat60, aes(Periode, Nama_Original, fill=Substitusi.x))+
+  geom_tile()+
+    theme(legend.position = "none",axis.text.x = element_text(angle = 45))+
+ scale_fill_viridis(discrete=TRUE)
+
+
+  # theme_ipsum()
+  # scale_x_discrete("Periode")
+# heat_fig1
+
+ggplotly(heat_fig1)
+```
+
+
+```{r heatmap1_fig, out.height = "700px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# heat_fig2
+ggplotly(heat_fig2)
+```
+
+Column 
+-------------------------------------
+
+
+```{r heatmap2_fig, out.height = "700px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# heat_fig2
+ggplotly(heat_fig3)
+```
+
+```{r heatmap3_fig, out.height = "700px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# heat_fig2
+ggplotly(heat_fig4)
+```
+
+Column 
+-------------------------------------
+
+
+```{r heatmap4_fig, out.height = "700px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# heat_fig2
+ggplotly(heat_fig5)
+```
+
+```{r heatmap5_fig, out.height = "700px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# heat_fig2
+ggplotly(heat_fig6)
+```
+
+
+NPL {data-navmenu="ADVANCED ANALYSIS" data-orientation=columns data-icon="fa-signal"}
+===================================== 
+
+
+```{r npl_fig, out.height = "700px", out.weight = "600px", message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# y=npl% x=loan z=dpk
+
+# annual %>% 
+#   hchart("scatter", hcaes(x = avg_mcap1, y = anreturns1, group = SecurityCode)) %>% hc_legend(enabled = FALSE) %>% 
+#   hc_yAxis(title = list(text = "Annual Return"), labels = list(format = "{value}%")) %>% 
+#   hc_xAxis(title = list(text = "Average Marketcap"))
+
+rekap <- rekap %>% mutate(Sandi_LKM=as.character(Sandi_LKM),NPL1=scales::percent(NPL, accuracy = 5L))
+# colnames(rekap)
+npl_data <- finaldata %>%  
+  filter(Periode_Laporan=="20212",!grepl('Agregat', Nama_Original)) %>% 
+  left_join(rekap, by="Sandi_LKM") %>% 
+  mutate(highlight = case_when(`Total Pembiayaan Bermasalah`>=1000000000 ~ Nama_Original)) %>% 
+  select(Sandi_LKM, Periode_Laporan, Nama_Original,  `100_JmlhAst`, DPK, Jenis_Lembaga.y, `310_Mdl`,`311_SpnPkk/MdlDstr`,
+         asetgrup, deposittaking, `Pinjaman Yang Diberikan (netto)`,jenislembaga, 
+         "Total Pembiayaan Bermasalah", "Cakupan_Wilayah.y", "KR/KOJK.x", `Nominal Lancar`:`NPL1`, highlight  )
+
+plt <- ggplot(npl_data, aes(x = `Pinjaman Yang Diberikan (netto)`, y = `NPL`)) +
+  geom_point(
+    aes(color =jenislembaga , shape =deposittaking, text = paste(
+        npl_data$Nama_Original,
+        "\nNet Loan", scales::comma(npl_data$`Pinjaman Yang Diberikan (netto)`, accuracy = 5L),
+        "\nNPL", scales::percent(npl_data$NPL, accuracy = 5L),
+        "\nDeposit", scales::comma(npl_data$DPK, accuracy = 5L),
+        "\nAsal Lembaga", npl_data$jenislembaga,
+        "\nDeposit Taking", npl_data$deposittaking) ),
+    size = 1.5, 
+    alpha = 0.8 # It's nice to add some transparency because there may be overlap.
+     ) +
+  # Use custom colors
+  scale_color_manual(
+    values = color_dlkm
+  )+
+  scale_x_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))+
+  scale_y_continuous(labels = scales::percent)
+plt <- plt+  labs(
+    title =  "Scatter plot of Nonperforming Loan vs Net Loan",
+    x = "Net Loan (Rp)",
+    y = "Nonperforming Loan (%)"
+  )
+ggplotly(plt, tooltip = "text")
+
+```
+
+CLUSTER {data-navmenu="ADVANCED ANALYSIS"  data-orientation=columns data-icon="fa-signal"} 
+===================================== 
+
+
+Column  {.tabset .tabset-fade}
+-------------------------------------
+
+### Aset vs DPK
+
+```{r cluster_fig,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+cluster_fig <- ggplot(npl_data, aes(x = `100_JmlhAst`, y = DPK)) +
+  geom_point(
+    aes(color =jenislembaga , shape =deposittaking, text = paste(
+        npl_data$Nama_Original,
+        "\nTotal Asset", scales::comma(npl_data$`100_JmlhAst`, accuracy = 5L),
+        "\nDeposit", scales::comma(npl_data$DPK, accuracy = 5L),
+        "\nNPL", scales::percent(npl_data$NPL, accuracy = 5L),
+        "\nAsal Lembaga", npl_data$jenislembaga,
+        "\nDeposit Taking", npl_data$deposittaking) ),
+    size = 1.5, 
+    alpha = 0.8 # It's nice to add some transparency because there may be overlap.
+     ) +
+  # Use custom colors
+  scale_color_manual(
+    values = color_dlkm
+  )+
+  # breaks = c(2000, 4000), labels = c("2k", "4k")
+  scale_x_continuous(trans="log10",breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )+
+  scale_y_continuous(trans="log10",breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )
+  # scale_x_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))+
+  # scale_y_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))
+
+cluster_fig <- cluster_fig +  labs(
+    title =  "Clustering based of Total Asset vs Net Deposit",
+    x = "Total Asset (Rp)",
+    y = "Net Deposit (Rp)"
+  )+
+  # horizontal
+  geom_hline(yintercept=1000000000, color="orange", size=1) + 
+  # vertical
+  geom_vline(xintercept=1000000000, color="orange", size=1)
+# cluster_fig
+ggplotly(cluster_fig, tooltip = "text")
+
+
+
+```
+
+### Aset vs DPK2
+
+```{r cluster_fig2,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+cluster_fig2 <- ggplot(npl_data, aes(x = `100_JmlhAst`, y = DPK)) +
+  geom_point(
+    aes(color =jenislembaga , shape =deposittaking, text = paste(
+        npl_data$Nama_Original,
+        "\nTotal Asset", scales::comma(npl_data$`100_JmlhAst`, accuracy = 5L),
+        "\nDeposit", scales::comma(npl_data$DPK, accuracy = 5L),
+        "\nNPL", scales::percent(npl_data$NPL, accuracy = 5L),
+        "\nAsal Lembaga", npl_data$jenislembaga,
+        "\nDeposit Taking", npl_data$deposittaking) ),
+    size = 1.5, 
+    alpha = 0.8 # It's nice to add some transparency because there may be overlap.
+     ) +
+  # Use custom colors
+  scale_color_manual(
+    values = color_dlkm
+  )+
+  # breaks = c(2000, 4000), labels = c("2k", "4k")
+  scale_x_continuous(trans="log10",breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )+
+  scale_y_continuous(trans="log10",breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )
+  # scale_x_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))+
+  # scale_y_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))
+
+cluster_fig2 <- cluster_fig2 +  labs(
+    title =  "Clustering based of Total Asset vs Net Deposit",
+    x = "Total Asset (Rp)",
+    y = "Net Deposit (Rp)"
+  )+
+  # horizontal
+  geom_hline(yintercept=1000000000, color="orange", size=1) + 
+  # vertical
+  geom_vline(xintercept=5000000000, color="orange", size=1)
+# cluster_fig
+ggplotly(cluster_fig2, tooltip = "text")
+
+
+
+```
+
+### Modal disetor vs DPK3
+
+```{r cluster_fig3,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+cluster_fig3 <- ggplot(npl_data, aes(x = `310_Mdl`, y = DPK)) +
+  geom_point(
+    aes(color =jenislembaga , shape =deposittaking, text = paste(
+        npl_data$Nama_Original,
+        "\nTotal Modal", scales::comma(npl_data$`310_Mdl`, accuracy = 5L),
+        "\nDeposit", scales::comma(npl_data$DPK, accuracy = 5L),
+        "\nNPL", scales::percent(npl_data$NPL, accuracy = 5L),
+        "\nAsal Lembaga", npl_data$jenislembaga,
+        "\nDeposit Taking", npl_data$deposittaking) ),
+    size = 1.5, 
+    alpha = 0.8 # It's nice to add some transparency because there may be overlap.
+     ) +
+  # Use custom colors
+  scale_color_manual(
+    values = color_dlkm
+  )+
+  # breaks = c(2000, 4000), labels = c("2k", "4k")
+  scale_x_continuous(trans="log10",breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )+
+  scale_y_continuous(trans="log10",breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )
+  # scale_x_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))+
+  # scale_y_continuous(trans="log10", labels = scales::label_number(suffix = " Jt", scale = 1e-6))
+
+cluster_fig3 <- cluster_fig3 +  labs(
+    title =  "Clustering based of Paid up Capital vs Net Deposit",
+    x = "Modal (Rp)",
+    y = "Net Deposit (Rp)"
+  )+
+  # horizontal
+  geom_hline(yintercept=1000000000, color="orange", size=1) + 
+  # vertical
+  geom_vline(xintercept=1000000000, color="orange", size=1)
+# cluster_fig
+ggplotly(cluster_fig3, tooltip = "text")
+
+
+
+```
+
+
+
+### Cluster figure
+
+```{r cluster2_fig,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+
+# create plot
+
+# cluster_fig1 <- ggplot(npl_data, aes(x = `100_JmlhAst`, y = DPK)) +
+#   coord_fixed() +
+#   geom_point( aes(color = npl_data$jenislembaga), size = 1)+
+#   # Use custom colors
+#   scale_color_manual(
+#     values = color_dlkm
+#   )+
+#   scale_x_continuous(trans="log10",
+#                       expand = c(0, 0),
+#                      limits = c(-1, 100000000000), breaks = c(500000000,50000000000),
+#                      labels=c("500000000" = "Low", "50000000000" = "High")) +
+#   scale_y_continuous(trans="log10",expand = c(0, 0),
+#                      limits = c(-1,100000000000), breaks = c(500000000,50000000000),
+#                      labels=c("500000000" = "Low", "50000000000" = "High")) +
+#   # empty_theme +
+#   labs(title = "Asset vs Deposit",
+#        x = "Asset",
+#        y = "Deposit") +
+#   geom_vline(xintercept = 1000000000,color="orange", size=1) +
+#   geom_hline(yintercept = 1000000000,color="orange", size=1)  +
+#   theme(legend.position = "none")
+# 
+# 
+# ggplotly(cluster_fig1)
+
+
+# create plot
+# glimpse(npl_data)
+npl_data <- npl_data %>% mutate(quadrant= case_when(`100_JmlhAst`>1000000000 & DPK>1000000000 ~ "Q1",
+                                                    `100_JmlhAst`<=1000000000 & DPK>1000000000 ~ "Q2",
+                                                    `100_JmlhAst`<=1000000000 & DPK<=1000000000 ~ "Q3",
+                                                    `100_JmlhAst`>1000000000 & DPK<=1000000000 ~ "Q4"))
+cluster_fig2 <- npl_data %>% 
+  ggplot(aes(x = `100_JmlhAst`, y = DPK, color = quadrant,text = paste(
+        Nama_Original,
+        "\nTotal Asset", scales::comma(`100_JmlhAst`, accuracy = 5L),
+        "\nDeposit", scales::comma(DPK, accuracy = 5L),
+        "\nNPL", scales::percent(NPL, accuracy = 5L),
+        "\nAsal Lembaga", jenislembaga,
+        "\nDeposit Taking", npl_data$deposittaking) )) +
+  geom_vline(xintercept = 1000000000) + # plot vertical line
+  geom_hline(yintercept = 1000000000) + # plot horizontal line
+  geom_point()+
+  # scale_x_log10
+  scale_x_log10(breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )+
+  scale_y_log10(breaks = c(10000000, 100000000, 500000000, 1000000000, 10000000000, 100000000000), labels = c("10jt", "100jt", "500jt", "1M", "10M", "100M") )
+# cluster_fig2
+ggplotly(cluster_fig2, tooltip = "text")
+```
+
+### Cluster Analysis
+
+
+
+```{r cluster3,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+
+pair_data <- finaldata %>% 
+    filter(Periode_Laporan=="20212",!grepl('Agregat', Nama_Original)) %>% 
+  left_join(rekap, by="Sandi_LKM") %>% 
+  mutate(
+      "Total Assets"=(`100_JmlhAst`),
+      "Net Loan"=(`Pinjaman Yang Diberikan (netto)`),
+      "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+      "Net Income"=(`900_SHU/LbRgThnBrjln`),
+      "Equity"=`300_JmlhEkts`,
+      "Operating Income"=`430_JmlhPndptnOprsnl`,
+      "Operating Exp+Dist"=`560_JmlhBbnOprsnl` +`440_HkPhkKtgAtsBgHsl`,
+      "Net Income IS"=`900_SHU/LbRgThnBrjln`) %>% 
+  select(Sandi_LKM, Nama_Original, deposittaking, "Total Assets","Net Loan", "Net Deposit", 
+         "Net Income","Equity","Operating Income","Operating Exp+Dist","Net Income IS",`200_JUMLAHLIABILITAS`, `270_JmlhDnSyrkhTmprr`, jenislembaga, 
+         "Total Pembiayaan Bermasalah", "Cakupan_Wilayah.y", "KR/KOJK.x", `Nominal Lancar`:`NPL`)
+# glimpse(pair_data)
+pairs(pair_data[4:11],log="xy")
+
+```
+
+
+
+```{r cluster4,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# 
+# df <- msleep %>% 
+# mutate(log_brainwt = log(brainwt),log_bodywt = log(bodywt)) %>%
+# select(log_brainwt, log_bodywt, sleep_total, sleep_rem)
+# # custom function for density plot
+# my_density <- function(data, mapping, ...){
+#   ggplot(data = data, mapping = mapping) + 
+#     geom_density(alpha = 0.5, fill = "indianred3", ...)
+# }
+# # custom function for scatterplot
+# my_scatter <- function(data, mapping, ...){
+#   ggplot(data = data, mapping = mapping) + 
+#     geom_point(alpha = 0.5,color = "indianred3") + 
+#     geom_smooth(method=lm, se=FALSE, ...)
+# }
+# # create scatterplot matrix
+# ggpairs(df, 
+#         lower=list(continuous = my_scatter), 
+#         diag = list(continuous = my_density)) +
+#   labs(title = "Mammal size and sleep characteristics") +
+#   theme_bw()
+
+
+# par_fig2 <- ggpairs(pair_data, columns = 3:10, ggplot2::aes(colour=deposittaking, alpha = 0.5), upper = list(continuous = "points")) 
+# par_fig2 <- ggpairs(pair_data, columns = 4:11,log="xy", ggplot2::aes(colour=deposittaking, alpha = 0.5), upper = list(continuous =wrap("cor", size=3))) +
+#   theme(legend.position = "none", axis.text.x = element_text(angle = 45))
+#  
+# par_fig2
+```
+
+### CA 2
+
+
+
+tambah teks nama bagi lkm yg memiliki piutang bermasalah di atas 1m dan simpanan diatas 1m
+
+
+
+```{r cluster5,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# glimpse(pair_data1)
+# glimpse(npl_data)
+pair_data1 <- finaldata %>% 
+    filter(!grepl('Agregat', Nama_Original)) %>% 
+  left_join(rekap, by="Sandi_LKM") %>% 
+  mutate(
+      "Total Assets"=(`100_JmlhAst`),
+      "Net Loan"=(`Pinjaman Yang Diberikan (netto)`),
+      "Net Deposit"=(`220_Smpnn:`+`223_TbngnWdh`+`270_JmlhDnSyrkhTmprr`),
+      "Net Income"=(`900_SHU/LbRgThnBrjln`),
+      "Equity"=`300_JmlhEkts`,
+      "Operating Income"=`430_JmlhPndptnOprsnl`,
+      "Operating Exp+Dist"=`560_JmlhBbnOprsnl` +`440_HkPhkKtgAtsBgHsl`,
+      "Net Income IS"=`900_SHU/LbRgThnBrjln`,
+      rasio_solvabilitas= `Total Assets`/(`200_JUMLAHLIABILITAS`+`270_JmlhDnSyrkhTmprr`) )%>%
+  select(Nama_Original,Periode_Laporan,Tanggal, `Net Deposit`, `Total Pembiayaan Bermasalah`, `Total Assets`,`200_JUMLAHLIABILITAS`, `270_JmlhDnSyrkhTmprr`,rasio_solvabilitas, jenislembaga ) 
+
+pair_data2 <- pair_data1 %>% filter(rasio_solvabilitas<1.1) %>% select(Nama_Original,Periode_Laporan,rasio_solvabilitas) %>% 
+   tidyr::pivot_wider(names_from=Periode_Laporan, values_from=rasio_solvabilitas)
+
+fig3d <- plot_ly(pair_data, 
+                 x = ~`Net Deposit`, 
+                 y = ~`Total Assets`, 
+                 z = ~Equity, 
+                 color = ~jenislembaga, 
+                 type = "scatter3d",
+                 mode = "markers",
+                 size = ~`Total Pembiayaan Bermasalah`,
+                  marker = list(symbol = 'circle', sizemode = 'diameter'),
+                 colors = color_dlkm
+                 )
+
+# fig3d <- plot_ly(pair_data1, 
+#                  x = ~`Net Deposit`, 
+#                  y = ~`Total Pembiayaan Bermasalah`, 
+#                  z = ~Equity, 
+#                  color = ~jenislembaga, 
+#                  type = "scatter3d",
+#                  mode = "markers",
+#                   size = ~`Total Assets`,
+#                   marker = list(symbol = 'circle', sizemode = 'diameter'),
+#                  colors = color_dlkm
+#                  )
+fig3d <- fig3d %>% 
+  add_markers(
+    )
+fig3d <- fig3d %>%
+  layout(scene = list(xaxis = list(title = 'Dana Pihak Ketiga',type = "log"),
+                     yaxis = list(title = 'Total Aset',type = "log"),
+                     zaxis = list(title = 'Ekuitas',type = "log"))) %>% 
+  add_trace( 
+    text = ~paste(jenislembaga," ", Nama_Original, '<br>Piutang Bermasalah: ',scales::comma(`Total Pembiayaan Bermasalah`, accuracy = 5L)),
+    hovertemplate = paste(
+      "<b>%{text}</b><br>",
+      "Total Aset: %{y:,.0f}<br>",
+      "Dana Pihak Ketiga: %{x:,.0f}<br>",
+      "Ekuitas: %{z:,.0f}<br>",
+      "<extra></extra>"
+      ))
+
+fig3d
+```
+
+
+### CA 3
+
+
+```{r cluster5a,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+cluster_data2 <- pair_data %>% arrange(`Total Assets`)
+# glimpse(cluster_data2)
+#normalize
+z0 <- cluster_data2[4:10]
+means0 <- apply(z0,2,mean)
+sds0 <- apply(z0,2,sd)
+nor0 <- scale(z0,center=means0,scale=sds0)
+
+
+# K-means clustering
+# set.seed(123)
+wssplot <- function(data, nc=15, seed=1234){
+                  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+                      for (i in 2:nc){
+                set.seed(seed)
+                    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+              plot(1:nc, wss, type="b", xlab="Number of Clusters",
+                            ylab="Within groups sum of squares")
+              wss
+       }
+a <- wssplot(z0)
+a
+kc<-kmeans(nor0,3)
+kc
+# glimpse(z0)
+plot(z0, col = kc$cluster)
+points(kc$centers, col = 1:6, pch = 8)
+
+
+factoextra::fviz_cluster(kc, data = z0,
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw()
+             )
+# Fig 01
+fpc::plotcluster(z0, kc$cluster)
+
+# More complex
+cluster::clusplot(z0, kc$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
+
+# https://sscnars.icar.gov.in/R_manual/05%20Multivariate%20Analysis%20using%20R-BNM.pdf
+
+# Euclidean distance
+dist0 <- dist(z0, diag=TRUE) #distance matrix
+
+# Hierarchical Clustering with hclust
+hc0 <- hclust(dist0)
+
+# Plot the result
+plot(hc0) # display dendogram
+ 
+rect.hclust(hc0,k=3, border="red")
+
+
+
+
+# store the dedrogram in an object
+dhc <- as.dendrogram(hc0)
+
+# set the margin
+par(mar=c(4,4,2,2))
+
+# Plot the Second group
+plot(dhc[[2]] , main= "zoom on a part of the dendrogram")
+```
+
+
+### Dendrogram
+
+```{r dendro,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+# http://www.sthda.com/english/wiki/beautiful-dendrogram-visualizations-in-r-5-must-known-methods-unsupervised-machine-learning
+# Compute distances and hierarchical clustering
+dd <- dist(scale(z0), method = "euclidean")
+hc <- hclust(dd, method = "ward.D2")
+# Convert hclust into a dendrogram and plot
+hcd <- as.dendrogram(hc)
+# Define nodePar
+nodePar <- list(lab.cex = 0.6, pch = c(NA, 19), 
+                cex = 0.7, col = "blue")
+#  plot
+plot(hcd,  xlab = "Height",
+     nodePar = nodePar, horiz = FALSE)
+
+# Fan
+plot(ape::as.phylo(hc), type = "fan")
+
+```
+
+
+
+### DrillDown
+
+```{r drilldown,  message=FALSE, warning=FALSE, echo=FALSE, error=FALSE}
+library(shiny)
+library(plotly)
+library(dplyr)
+library(readr)
+
+sales <- read_csv("https://plotly-r.com/data-raw/sales.csv")
+categories <- unique(sales$category)
+sub_categories <- unique(sales$sub_category)
+ids <- unique(sales$id)
+
+fluidPage(
+  uiOutput("history"),
+  plotlyOutput("bars", height = 200),
+  plotlyOutput("lines", height = 300),
+  uiOutput('back'),
+  uiOutput("back1")
+)
+  
+  
+  # These reactive values keep track of the drilldown state
+  # (NULL means inactive)
+  drills <- reactiveValues(category = NULL,
+                           sub_category = NULL,
+                           id = NULL)
+  # filter the data based on active drill-downs
+  # also create a column, value, which keeps track of which
+  # variable we're interested in
+  sales_data <- reactive({
+    if (!length(drills$category)) {
+      return(mutate(sales, value = category))
+    }
+    sales <- filter(sales, category %in% drills$category)
+    if (!length(drills$sub_category)) {
+      return(mutate(sales, value = sub_category))
+    }
+    sales <- filter(sales, sub_category %in% drills$sub_category)
+    mutate(sales, value = id)
+  })
+  
+  # bar chart of sales by 'current level of category'
+  output$bars <- renderPlotly({
+    d <- count(sales_data(), value, wt = sales)
+    
+    p <- plot_ly(d,
+                 x = ~ value,
+                 y = ~ n,
+                 source = "bars") %>%
+      layout(yaxis = list(title = "Total Sales"),
+             xaxis = list(title = ""))
+    
+    if (!length(drills$sub_category)) {
+      add_bars(p, color = ~ value)
+    } else if (!length(drills$id)) {
+      add_bars(p) %>%
+        layout(hovermode = "x",
+               xaxis = list(showticklabels = FALSE))
+    } else {
+      # add a visual cue of which ID is selected
+      add_bars(p) %>%
+        filter(value %in% drills$id) %>%
+        add_bars(color = I("black")) %>%
+        layout(
+          hovermode = "x",
+          xaxis = list(showticklabels = FALSE),
+          showlegend = FALSE,
+          barmode = "overlay"
+        )
+    }
+  })
+  
+  
+  # control the state of the drilldown by clicking the bar graph
+  observeEvent(event_data("plotly_click", source = "bars"), {
+    x <- event_data("plotly_click", source = "bars")$x
+    if (!length(x))
+      return()
+    
+    if (!length(drills$category)) {
+      drills$category <- x
+    } else if (!length(drills$sub_category)) {
+      drills$sub_category <- x
+    } else {
+      drills$id <- x
+    }
+  })
+  
+  output$back <- renderUI({
+    if (!is.null(drills$category) && is.null(drills$sub_category)) {
+      actionButton("clear", "Back", icon("chevron-left"))
+    }
+  })
+  
+  output$back1 <- renderUI({
+    if (!is.null(drills$sub_category)) {
+      actionButton("clear1", "Back", icon("chevron-left"))
+    }
+  })
+  
+  observeEvent(input$clear,
+               drills$category <- NULL)
+  observeEvent(input$clear1,
+               drills$sub_category <- NULL)
+    
+```
+
